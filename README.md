@@ -20,7 +20,7 @@ yarn add pratt
 
 ## Usage
 
-This README merely serves as an example. Be sure to [read the API documentation](https://jrop.github.io/pratt/).
+This README merely serves as an example. Be sure to [read the API documentation](https://jrop.github.io/pratt/index.html).
 
 Make a simple calculator:
 
