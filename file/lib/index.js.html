@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">lib/index.js | API Document</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  
+  
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <a data-ice="repoURL" href="https://github.com/jrop/pratt" class="repo-url-github">Repository</a>
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+</header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~Parser.html">Parser</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/index.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * A Pratt parser.
+ * @example
+ * const lex = perplex(&apos;1 + -2 * 3^4&apos;)
+ *   .token(&apos;NUM&apos;, /\d+/)
+ *   .token(&apos;+&apos;, /\+/)
+ *   .token(&apos;-&apos;, /-/)
+ *   .token(&apos;*&apos;, new RegExp(&apos;*&apos;))
+ *   .token(&apos;/&apos;, /\//)
+ *   .token(&apos;^&apos;, /\^/)
+ *   .token(&apos;(&apos;, /\(/)
+ *   .token(&apos;)&apos;, /\)/)
+ *   .token(&apos;$SKIP_WS&apos;, /\s+/)
+ *
+ * const parser = new Parser(lex)
+ *   .builder()
+ *   .nud(&apos;NUM&apos;, 100, t =&gt; parseInt(t.match))
+ *   .nud(&apos;-&apos;, 10, (t, bp) =&gt; -parser.parse(bp))
+ *   .nud(&apos;(&apos;, 10, (t, bp) =&gt; {
+ *     const expr = parser.parse(bp)
+ *     lex.expect(&apos;)&apos;)
+ *     return expr
+ *   })
+ *   .bp(&apos;)&apos;, 0)
+ *
+ *   .led(&apos;^&apos;, 20, (left, t, bp) =&gt; Math.pow(left, parser.parse(bp - 1)))
+ *   .led(&apos;+&apos;, 30, (left, t, bp) =&gt; left + parser.parse(bp))
+ *   .led(&apos;-&apos;, 30, (left, t, bp) =&gt; left - parser.parse(bp))
+ *   .led(&apos;*&apos;, 40, (left, t, bp) =&gt; left * parser.parse(bp))
+ *   .led(&apos;/&apos;, 40, (left, t, bp) =&gt; left / parser.parse(bp))
+ *   .build()
+ * parser.parse()
+ * // =&gt; 161
+ */
+export class Parser {
+    /**
+     * Constructs a Parser instance
+     * @param {perplex.Lexer} lexer The `perplex` lexer to obtain tokens from
+     */
+    constructor(lexer) {
+        this._lexer = lexer;
+        this._nuds = new Map();
+        this._leds = new Map();
+        this._bps = new Map();
+    }
+    _strpos(token) {
+        const { start, end } = token.strpos();
+        return `${start.line}:${start.column}`;
+    }
+    _type(tokenOrType) {
+        return typeof tokenOrType == &apos;string&apos; ? tokenOrType : tokenOrType.type;
+    }
+    /**
+     * Create a {@link ParserBuilder}
+     * @return {ParserBuilder} Returns the ParserBuilder
+     */
+    builder() {
+        return new ParserBuilder(this);
+    }
+    /**
+     * Define binding power for a token-type
+     * @param {perplex.Token|string} tokenOrType The token type to define the binding power for
+     * @returns {number} The binding power of the specified token type
+     */
+    bp(tokenOrType) {
+        return this._bps.get(this._type(tokenOrType)) || Number.NaN;
+    }
+    /**
+     * Computes the token&apos;s `nud` value and returns it
+     * @param {perplex.Token} token The token to compute the `nud` from
+     * @returns {any} The result of invoking the pertinent `nud` operator
+     */
+    nud(token) {
+        let fn = this._nuds.get(token.type);
+        if (!fn)
+            fn = () =&gt; {
+                throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`);
+            };
+        return fn(token, this.bp(token));
+    }
+    /**
+     * Computes a token&apos;s `led` value and returns it
+     * @param {any} left The left value
+     * @param {perplex.Token} token The token to compute the `led` value for
+     * @returns {any} The result of invoking the pertinent `led` operator
+     */
+    led(left, token) {
+        const bp = this.bp(token);
+        let fn = this._leds.get(token.type);
+        if (!fn)
+            fn = () =&gt; {
+                throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`);
+            };
+        return fn(left, token, bp);
+    }
+    /**
+     * Kicks of the Pratt parser, and returns the result
+     * @param {number} [rbp=0] The right binding power
+     * @returns {any}
+     */
+    parse(rbp = 0) {
+        let left = this.nud(this._lexer.next());
+        while (rbp &lt; this.bp(this._lexer.peek())) {
+            const operator = this._lexer.next();
+            left = this.led(left, operator);
+        }
+        return left;
+    }
+}
+/**
+ * Builds `led`/`nud` rules for a {@link Parser}
+ */
+export class ParserBuilder {
+    /**
+     * Constructs a ParserBuilder
+     * See also: {@link Parser.builder}
+     * @param {Parser} parser The parser
+     */
+    constructor(parser) {
+        this._parser = parser;
+    }
+    /**
+     * Define `nud` for a token type
+     * @param {string} tokenType The token type
+     * @param {number} bp The binding power
+     * @param {function(token: Token, bp: number): any} fn The function that will parse the token
+     * @return {ParserBuilder} Returns this ParserBuilder
+     */
+    nud(tokenType, bp, fn) {
+        this._parser._nuds.set(tokenType, fn);
+        this.bp(tokenType, bp);
+        return this;
+    }
+    /**
+     * Define `led` for a token type
+     * @param {string} tokenType The token type
+     * @param {number} bp The binding power
+     * @param {function(left: any, token: perplex.Token, bp: number): any} fn The function that will parse the token
+     * @return {ParserBuilder} Returns this ParserBuilder
+     */
+    led(tokenType, bp, fn) {
+        this._parser._leds.set(tokenType, fn);
+        this.bp(tokenType, bp);
+        return this;
+    }
+    /**
+     * Define the binding power for a token type
+     * @param {string} tokenType The token type
+     * @param {number} bp The binding power
+     * @return {ParserBuilder} Returns this ParserBuilder
+     */
+    bp(tokenType, bp) {
+        this._parser._bps.set(tokenType, bp);
+        return this;
+    }
+    /**
+     * Returns the parent {@link Parser} instance
+     * @returns {Parser}
+     */
+    build() {
+        return this._parser;
+    }
+}
+export default Parser;
+//# sourceMappingURL=index.js.map</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(0.5.2)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>
