@@ -1,0 +1,24 @@
+{
+  "name": "pratt",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "scripts": {
+    "doc": "tsc --module es2015 --target es2017 && esdoc",
+    "pkg://main": "tsc",
+    "pkg*://main": "tsc -w",
+    "prepublish": "npm test",
+    "test": "pkgbuild && node lib/test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^7.0.10",
+    "esdoc": "^0.5.2",
+    "pkgbuild": "^0.0.4",
+    "typescript": "^2.2.1"
+  },
+  "dependencies": {
+    "perplex": "^0.5.2"
+  },
+  "files": ["lib/index.js"],
+  "repository": "jrop/pratt"
+}
