@@ -1,6 +1,6 @@
 {
   "name": "pratt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
@@ -11,11 +11,11 @@
     "test": "pkgbuild && node lib/test.js"
   },
   "devDependencies": {
-    "@types/node": "^7.0.10",
+    "@types/node": "^7.0.12",
     "esdoc": "^0.5.2",
-    "perplex": "^0.6.0",
+    "perplex": "^0.7.1",
     "pkgbuild": "^0.0.4",
-    "typescript": "^2.2.1"
+    "typescript": "^2.2.2"
   },
   "files": [
     "lib/index.js",

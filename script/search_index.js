@@ -396,6 +396,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/index.js~parser#lexer",
+    "class/lib/index.js~Parser.html#instance-member-lexer",
+    "lib/index.js~Parser#lexer",
+    "member"
+  ],
+  [
     "lib/index.js~parser#nud",
     "class/lib/index.js~Parser.html#instance-method-nud",
     "lib/index.js~Parser#nud",

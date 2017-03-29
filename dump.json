@@ -3,7 +3,7 @@
     "__docId__": 0,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "/**\n * @typedef {function(token: IToken, bp: number): any} NudFunction\n */\n/**\n * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction\n */\n/**\n * @typedef {{type: string, match: string}} IToken\n */\n/**\n * @typedef {{\n *   next: () => IToken,\n *   peek: () => IToken\n * }} ILexer\n */\n/**\n * A Pratt parser.\n * @example\n * const lex = perplex('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        this._lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return typeof tokenOrType == 'string' ? tokenOrType : tokenOrType.type;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken|string} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        return this._bps.get(this._type(tokenOrType)) || Number.NaN;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {IToken} token The token to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(token) {\n        let fn = this._nuds.get(token.type);\n        if (!fn)\n            fn = () => {\n                throw new Error(`Unexpected token: ${token.match}`);\n            };\n        return fn(token, this.bp(token));\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {any} left The left value\n     * @param {IToken} token The token to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(left, token) {\n        const bp = this.bp(token);\n        let fn = this._leds.get(token.type);\n        if (!fn)\n            fn = () => {\n                throw new Error(`Unexpected token: ${token.match}`);\n            };\n        return fn(left, token, bp);\n    }\n    /**\n     * Kicks of the Pratt parser, and returns the result\n     * @param {number} [rbp=0] The right binding power\n     * @returns {any}\n     */\n    parse(rbp = 0) {\n        let left = this.nud(this._lexer.next());\n        while (rbp < this.bp(this._lexer.peek())) {\n            const operator = this._lexer.next();\n            left = this.led(left, operator);\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
+    "content": "/**\n * @typedef {function(token: IToken, bp: number): any} NudFunction\n */\n/**\n * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction\n */\n/**\n * @typedef {{type: string, match: string}} IToken\n */\n/**\n * @typedef {{\n *   next: () => IToken,\n *   peek: () => IToken\n * }} ILexer\n */\n/**\n * A Pratt parser.\n * @example\n * const lex = perplex('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        /**\n         * The lexer that this parser is operating on.\n         * @type {ILexer}\n         */\n        this.lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return typeof tokenOrType == 'string' ? tokenOrType : tokenOrType.type;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken|string} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        return this._bps.get(this._type(tokenOrType)) || Number.NaN;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {IToken} token The token to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(token) {\n        let fn = this._nuds.get(token.type);\n        if (!fn)\n            fn = () => {\n                throw new Error(`Unexpected token: ${token.match}`);\n            };\n        return fn(token, this.bp(token));\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {any} left The left value\n     * @param {IToken} token The token to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(left, token) {\n        const bp = this.bp(token);\n        let fn = this._leds.get(token.type);\n        if (!fn)\n            fn = () => {\n                throw new Error(`Unexpected token: ${token.match}`);\n            };\n        return fn(left, token, bp);\n    }\n    /**\n     * Kicks of the Pratt parser, and returns the result\n     * @param {number} [rbp=0] The right binding power\n     * @returns {any}\n     */\n    parse(rbp = 0) {\n        let left = this.nud(this.lexer.next());\n        while (rbp < this.bp(this.lexer.peek())) {\n            const operator = this.lexer.next();\n            left = this.led(left, operator);\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
     "static": true,
     "longname": "lib/index.js",
     "access": null,
@@ -124,24 +124,20 @@
   {
     "__docId__": 7,
     "kind": "member",
-    "name": "_lexer",
+    "name": "lexer",
     "memberof": "lib/index.js~Parser",
     "static": false,
-    "longname": "lib/index.js~Parser#_lexer",
+    "longname": "lib/index.js~Parser#lexer",
     "access": null,
-    "description": null,
-    "lineNumber": 56,
-    "undocument": true,
-    "unknown": [
-      {
-        "tagName": "@_undocument",
-        "tagValue": ""
-      }
-    ],
+    "description": "The lexer that this parser is operating on.",
+    "lineNumber": 60,
     "type": {
+      "nullable": null,
       "types": [
-        "*"
-      ]
+        "ILexer"
+      ],
+      "spread": false,
+      "description": null
     }
   },
   {
@@ -153,7 +149,7 @@
     "longname": "lib/index.js~Parser#_nuds",
     "access": null,
     "description": null,
-    "lineNumber": 57,
+    "lineNumber": 61,
     "undocument": true,
     "unknown": [
       {
@@ -176,7 +172,7 @@
     "longname": "lib/index.js~Parser#_leds",
     "access": null,
     "description": null,
-    "lineNumber": 58,
+    "lineNumber": 62,
     "undocument": true,
     "unknown": [
       {
@@ -199,7 +195,7 @@
     "longname": "lib/index.js~Parser#_bps",
     "access": null,
     "description": null,
-    "lineNumber": 59,
+    "lineNumber": 63,
     "undocument": true,
     "unknown": [
       {
@@ -224,7 +220,7 @@
     "longname": "lib/index.js~Parser#_type",
     "access": null,
     "description": null,
-    "lineNumber": 61,
+    "lineNumber": 65,
     "undocument": true,
     "unknown": [
       {
@@ -257,7 +253,7 @@
     "longname": "lib/index.js~Parser#builder",
     "access": null,
     "description": "Create a {@link ParserBuilder}",
-    "lineNumber": 68,
+    "lineNumber": 72,
     "params": [],
     "return": {
       "nullable": null,
@@ -279,7 +275,7 @@
     "longname": "lib/index.js~Parser#bp",
     "access": null,
     "description": "Define binding power for a token-type",
-    "lineNumber": 76,
+    "lineNumber": 80,
     "unknown": [
       {
         "tagName": "@returns",
@@ -319,7 +315,7 @@
     "longname": "lib/index.js~Parser#nud",
     "access": null,
     "description": "Computes the token's `nud` value and returns it",
-    "lineNumber": 84,
+    "lineNumber": 88,
     "unknown": [
       {
         "tagName": "@returns",
@@ -358,7 +354,7 @@
     "longname": "lib/index.js~Parser#led",
     "access": null,
     "description": "Computes a token's `led` value and returns it",
-    "lineNumber": 98,
+    "lineNumber": 102,
     "unknown": [
       {
         "tagName": "@returns",
@@ -407,7 +403,7 @@
     "longname": "lib/index.js~Parser#parse",
     "access": null,
     "description": "Kicks of the Pratt parser, and returns the result",
-    "lineNumber": 112,
+    "lineNumber": 116,
     "unknown": [
       {
         "tagName": "@returns",
@@ -449,7 +445,7 @@
     "importPath": "pratt",
     "importStyle": "{ParserBuilder}",
     "description": "Builds `led`/`nud` rules for a {@link Parser}",
-    "lineNumber": 124,
+    "lineNumber": 128,
     "interface": false
   },
   {
@@ -463,7 +459,7 @@
     "longname": "lib/index.js~ParserBuilder#constructor",
     "access": null,
     "description": "Constructs a ParserBuilder\nSee also: {@link Parser.builder}",
-    "lineNumber": 130,
+    "lineNumber": 134,
     "params": [
       {
         "nullable": null,
@@ -486,7 +482,7 @@
     "longname": "lib/index.js~ParserBuilder#_parser",
     "access": null,
     "description": null,
-    "lineNumber": 131,
+    "lineNumber": 135,
     "undocument": true,
     "unknown": [
       {
@@ -511,7 +507,7 @@
     "longname": "lib/index.js~ParserBuilder#nud",
     "access": null,
     "description": "Define `nud` for a token type",
-    "lineNumber": 140,
+    "lineNumber": 144,
     "params": [
       {
         "nullable": null,
@@ -564,7 +560,7 @@
     "longname": "lib/index.js~ParserBuilder#led",
     "access": null,
     "description": "Define `led` for a token type",
-    "lineNumber": 152,
+    "lineNumber": 156,
     "params": [
       {
         "nullable": null,
@@ -617,7 +613,7 @@
     "longname": "lib/index.js~ParserBuilder#bp",
     "access": null,
     "description": "Define the binding power for a token type",
-    "lineNumber": 163,
+    "lineNumber": 167,
     "params": [
       {
         "nullable": null,
@@ -660,7 +656,7 @@
     "longname": "lib/index.js~ParserBuilder#build",
     "access": null,
     "description": "Returns the parent {@link Parser} instance",
-    "lineNumber": 171,
+    "lineNumber": 175,
     "unknown": [
       {
         "tagName": "@returns",

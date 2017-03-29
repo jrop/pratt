@@ -98,7 +98,11 @@ export class Parser {
      * @param {ILexer} lexer The lexer to obtain tokens from
      */
     constructor(lexer) {
-        this._lexer = lexer;
+        /**
+         * The lexer that this parser is operating on.
+         * @type {ILexer}
+         */
+        this.lexer = lexer;
         this._nuds = new Map();
         this._leds = new Map();
         this._bps = new Map();
@@ -155,9 +159,9 @@ export class Parser {
      * @returns {any}
      */
     parse(rbp = 0) {
-        let left = this.nud(this._lexer.next());
-        while (rbp &lt; this.bp(this._lexer.peek())) {
-            const operator = this._lexer.next();
+        let left = this.nud(this.lexer.next());
+        while (rbp &lt; this.bp(this.lexer.peek())) {
+            const operator = this.lexer.next();
             left = this.led(left, operator);
         }
         return left;
