@@ -2,9 +2,9 @@
 # yarn lockfile v1
 
 
-"@types/node@^7.0.10":
-  version "7.0.10"
-  resolved "https://registry.npmjs.org/@types/node/-/node-7.0.10.tgz#d860abb18c1b58b552c7c6cd8b2ba7adf6546fa3"
+"@types/node@^7.0.12":
+  version "7.0.12"
+  resolved "https://registry.npmjs.org/@types/node/-/node-7.0.12.tgz#ae5f67a19c15f752148004db07cbbb372e69efc9"
 
 abab@^1.0.0:
   version "1.0.3"
@@ -702,9 +702,9 @@ performance-now@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/performance-now/-/performance-now-0.2.0.tgz#33ef30c5c77d4ea21c5a53869d91b56d8f2555e5"
 
-perplex@^0.6.0:
-  version "0.6.0"
-  resolved "https://registry.npmjs.org/perplex/-/perplex-0.6.0.tgz#1b94c5ab05ed7929b1b659c32aa194951379cb5d"
+perplex@^0.7.1:
+  version "0.7.1"
+  resolved "https://registry.npmjs.org/perplex/-/perplex-0.7.1.tgz#8bb6cd83a075c6751b963274516f72a16455d5a0"
 
 pkgbuild@^0.0.4:
   version "0.0.4"
@@ -882,9 +882,9 @@ type-check@~0.3.2:
   dependencies:
     prelude-ls "~1.1.2"
 
-typescript@^2.2.1:
-  version "2.2.1"
-  resolved "https://registry.npmjs.org/typescript/-/typescript-2.2.1.tgz#4862b662b988a4c8ff691cc7969622d24db76ae9"
+typescript@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.npmjs.org/typescript/-/typescript-2.2.2.tgz#606022508479b55ffa368b58fee963a03dfd7b0c"
 
 util-deprecate@~1.0.1:
   version "1.0.2"

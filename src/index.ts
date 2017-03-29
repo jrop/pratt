@@ -66,7 +66,7 @@ export type LedMap = Map<string, LedFunction>
  * // => 161
  */
 export class Parser {
-	private _lexer: ILexer
+	protected lexer: ILexer
 	_nuds: NudMap 
 	_leds: LedMap
 	_bps: Map<string, number>
@@ -76,7 +76,11 @@ export class Parser {
 	 * @param {ILexer} lexer The lexer to obtain tokens from
 	 */
 	constructor(lexer: ILexer) {
-		this._lexer = lexer
+		/**
+		 * The lexer that this parser is operating on.
+		 * @type {ILexer}
+		 */
+		this.lexer = lexer
 		this._nuds  = new Map()
 		this._leds  = new Map()
 		this._bps   = new Map()
@@ -137,9 +141,9 @@ export class Parser {
 	 * @returns {any}
 	 */
 	parse(rbp: number = 0): any {
-		let left = this.nud(this._lexer.next())
-		while (rbp < this.bp(this._lexer.peek())) {
-			const operator = this._lexer.next()
+		let left = this.nud(this.lexer.next())
+		while (rbp < this.bp(this.lexer.peek())) {
+			const operator = this.lexer.next()
 			left = this.led(left, operator)
 		}
 		return left
