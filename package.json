@@ -1,6 +1,6 @@
 {
   "name": "pratt",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
@@ -13,12 +13,14 @@
   "devDependencies": {
     "@types/node": "^7.0.10",
     "esdoc": "^0.5.2",
+    "perplex": "^0.6.0",
     "pkgbuild": "^0.0.4",
     "typescript": "^2.2.1"
   },
-  "dependencies": {
-    "perplex": "^0.5.2"
-  },
-  "files": ["lib/index.js", "lib/index.d.ts", "index.d.ts"],
+  "files": [
+    "lib/index.js",
+    "lib/index.d.ts",
+    "index.d.ts"
+  ],
   "repository": "jrop/pratt"
 }

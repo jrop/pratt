@@ -1,10 +1,35 @@
-import * as perplex from 'perplex'
-import {Lexer, Token} from 'perplex'
+export interface IToken {
+	type: string
+	match: string
+}
+export interface ILexer {
+	next(): IToken
+	peek(): IToken
+}
 
-export type NudFunction = (token: Token, bp: number) => any
-export type LedFunction = (left: any, token: Token, bp: number) => any
+export type NudFunction = (token: IToken, bp: number) => any
+export type LedFunction = (left: any, token: IToken, bp: number) => any
 export type NudMap = Map<string, NudFunction>
 export type LedMap = Map<string, LedFunction>
+
+/**
+ * @typedef {function(token: IToken, bp: number): any} NudFunction
+ */
+
+/**
+ * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction
+ */
+
+/**
+ * @typedef {{type: string, match: string}} IToken
+ */
+
+/** 
+ * @typedef {{
+ *   next: () => IToken,
+ *   peek: () => IToken
+ * }} ILexer
+ */
 
 /**
  * A Pratt parser.
@@ -41,29 +66,24 @@ export type LedMap = Map<string, LedFunction>
  * // => 161
  */
 export class Parser {
-	private _lexer: Lexer
+	private _lexer: ILexer
 	_nuds: NudMap 
 	_leds: LedMap
 	_bps: Map<string, number>
 
 	/**
 	 * Constructs a Parser instance
-	 * @param {perplex.Lexer} lexer The `perplex` lexer to obtain tokens from
+	 * @param {ILexer} lexer The lexer to obtain tokens from
 	 */
-	constructor(lexer: Lexer) {
+	constructor(lexer: ILexer) {
 		this._lexer = lexer
 		this._nuds  = new Map()
 		this._leds  = new Map()
 		this._bps   = new Map()
 	}
 
-	private _strpos(token: Token) {
-		const {start, end} = token.strpos()
-		return `${start.line}:${start.column}`
-	}
-
-	private _type(tokenOrType: Token|string) {
-		return typeof tokenOrType == 'string' ? tokenOrType : (tokenOrType as Token).type
+	private _type(tokenOrType: IToken|string) {
+		return typeof tokenOrType == 'string' ? tokenOrType : (tokenOrType as IToken).type
 	}
 
 	/**
@@ -76,22 +96,22 @@ export class Parser {
 
 	/**
 	 * Define binding power for a token-type
-	 * @param {perplex.Token|string} tokenOrType The token type to define the binding power for
+	 * @param {IToken|string} tokenOrType The token type to define the binding power for
 	 * @returns {number} The binding power of the specified token type
 	 */
-	bp(tokenOrType: Token|string) {
+	bp(tokenOrType: IToken|string) {
 		return this._bps.get(this._type(tokenOrType)) || Number.NaN
 	}
 
 	/**
 	 * Computes the token's `nud` value and returns it
-	 * @param {perplex.Token} token The token to compute the `nud` from
+	 * @param {IToken} token The token to compute the `nud` from
 	 * @returns {any} The result of invoking the pertinent `nud` operator
 	 */
-	nud(token: Token) {
+	nud(token: IToken) {
 		let fn: NudFunction = this._nuds.get(token.type)
 		if (!fn) fn = () => {
-			throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`)
+			throw new Error(`Unexpected token: ${token.match}`)
 		}
 		return fn(token, this.bp(token))
 	}
@@ -99,14 +119,14 @@ export class Parser {
 	/**
 	 * Computes a token's `led` value and returns it
 	 * @param {any} left The left value
-	 * @param {perplex.Token} token The token to compute the `led` value for
+	 * @param {IToken} token The token to compute the `led` value for
 	 * @returns {any} The result of invoking the pertinent `led` operator
 	 */
-	led(left: any, token: Token) {
+	led(left: any, token: IToken) {
 		const bp = this.bp(token)
 		let fn = this._leds.get(token.type)
 		if (!fn) fn = () => {
-			throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`)
+			throw new Error(`Unexpected token: ${token.match}`)
 		}
 		return fn(left, token, bp)
 	}
@@ -145,7 +165,7 @@ export class ParserBuilder {
 	 * Define `nud` for a token type
 	 * @param {string} tokenType The token type
 	 * @param {number} bp The binding power
-	 * @param {function(token: Token, bp: number): any} fn The function that will parse the token
+	 * @param {NudFunction} fn The function that will parse the token
 	 * @return {ParserBuilder} Returns this ParserBuilder
 	 */
 	nud(tokenType: string, bp: number, fn: NudFunction): ParserBuilder {
@@ -158,7 +178,7 @@ export class ParserBuilder {
 	 * Define `led` for a token type
 	 * @param {string} tokenType The token type
 	 * @param {number} bp The binding power
-	 * @param {function(left: any, token: perplex.Token, bp: number): any} fn The function that will parse the token
+	 * @param {LedFunction} fn The function that will parse the token
 	 * @return {ParserBuilder} Returns this ParserBuilder
 	 */
 	led(tokenType: string, bp: number, fn: LedFunction): ParserBuilder {

@@ -702,9 +702,9 @@ performance-now@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/performance-now/-/performance-now-0.2.0.tgz#33ef30c5c77d4ea21c5a53869d91b56d8f2555e5"
 
-perplex@^0.5.2:
-  version "0.5.2"
-  resolved "https://registry.npmjs.org/perplex/-/perplex-0.5.2.tgz#c111815b6408ccb587f5f7d0fe60719f4a96a951"
+perplex@^0.6.0:
+  version "0.6.0"
+  resolved "https://registry.npmjs.org/perplex/-/perplex-0.6.0.tgz#1b94c5ab05ed7929b1b659c32aa194951379cb5d"
 
 pkgbuild@^0.0.4:
   version "0.0.4"
