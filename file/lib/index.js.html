@@ -34,12 +34,31 @@
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~Parser.html">Parser</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-NudFunction">NudFunction</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/index.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * @typedef {function(token: IToken, bp: number): any} NudFunction
+ */
+/**
+ * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction
+ */
+/**
+ * @typedef {{type: string, match: string}} IToken
+ */
+/**
+ * @typedef {{
+ *   next: () =&gt; IToken,
+ *   peek: () =&gt; IToken
+ * }} ILexer
+ */
+/**
  * A Pratt parser.
  * @example
  * const lex = perplex(&apos;1 + -2 * 3^4&apos;)
@@ -76,17 +95,13 @@
 export class Parser {
     /**
      * Constructs a Parser instance
-     * @param {perplex.Lexer} lexer The `perplex` lexer to obtain tokens from
+     * @param {ILexer} lexer The lexer to obtain tokens from
      */
     constructor(lexer) {
         this._lexer = lexer;
         this._nuds = new Map();
         this._leds = new Map();
         this._bps = new Map();
-    }
-    _strpos(token) {
-        const { start, end } = token.strpos();
-        return `${start.line}:${start.column}`;
     }
     _type(tokenOrType) {
         return typeof tokenOrType == &apos;string&apos; ? tokenOrType : tokenOrType.type;
@@ -100,7 +115,7 @@ export class Parser {
     }
     /**
      * Define binding power for a token-type
-     * @param {perplex.Token|string} tokenOrType The token type to define the binding power for
+     * @param {IToken|string} tokenOrType The token type to define the binding power for
      * @returns {number} The binding power of the specified token type
      */
     bp(tokenOrType) {
@@ -108,21 +123,21 @@ export class Parser {
     }
     /**
      * Computes the token&apos;s `nud` value and returns it
-     * @param {perplex.Token} token The token to compute the `nud` from
+     * @param {IToken} token The token to compute the `nud` from
      * @returns {any} The result of invoking the pertinent `nud` operator
      */
     nud(token) {
         let fn = this._nuds.get(token.type);
         if (!fn)
             fn = () =&gt; {
-                throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`);
+                throw new Error(`Unexpected token: ${token.match}`);
             };
         return fn(token, this.bp(token));
     }
     /**
      * Computes a token&apos;s `led` value and returns it
      * @param {any} left The left value
-     * @param {perplex.Token} token The token to compute the `led` value for
+     * @param {IToken} token The token to compute the `led` value for
      * @returns {any} The result of invoking the pertinent `led` operator
      */
     led(left, token) {
@@ -130,7 +145,7 @@ export class Parser {
         let fn = this._leds.get(token.type);
         if (!fn)
             fn = () =&gt; {
-                throw new Error(`${this._strpos(token)}: Unexpected token: ${token.match}`);
+                throw new Error(`Unexpected token: ${token.match}`);
             };
         return fn(left, token, bp);
     }
@@ -164,7 +179,7 @@ export class ParserBuilder {
      * Define `nud` for a token type
      * @param {string} tokenType The token type
      * @param {number} bp The binding power
-     * @param {function(token: Token, bp: number): any} fn The function that will parse the token
+     * @param {NudFunction} fn The function that will parse the token
      * @return {ParserBuilder} Returns this ParserBuilder
      */
     nud(tokenType, bp, fn) {
@@ -176,7 +191,7 @@ export class ParserBuilder {
      * Define `led` for a token type
      * @param {string} tokenType The token type
      * @param {number} bp The binding power
-     * @param {function(left: any, token: perplex.Token, bp: number): any} fn The function that will parse the token
+     * @param {LedFunction} fn The function that will parse the token
      * @return {ParserBuilder} Returns this ParserBuilder
      */
     led(tokenType, bp, fn) {
