@@ -104,7 +104,8 @@ export class Parser {
 	 * @returns {number} The binding power of the specified token type
 	 */
 	bp(tokenOrType: IToken|string) {
-		return this._bps.get(this._type(tokenOrType)) || Number.NaN
+		const type = this._type(tokenOrType)
+		return this._bps.has(type) ? this._bps.get(type) : Number.NaN
 	}
 
 	/**
