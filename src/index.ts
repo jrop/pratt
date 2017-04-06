@@ -105,7 +105,7 @@ export class Parser {
 	 */
 	bp(tokenOrType: IToken|string) {
 		const type = this._type(tokenOrType)
-		return this._bps.has(type) ? this._bps.get(type) : Number.NaN
+		return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY
 	}
 
 	/**

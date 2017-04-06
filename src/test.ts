@@ -15,6 +15,7 @@ const lex = perplex('')
 
 const parser: Parser = new Parser(lex)
 	.builder()
+	.bp('$EOF', -1)
 	.nud('NUM', 100, t => parseInt(t.match))
 	.nud('-', 10, (t, bp) => -parser.parse(bp))
 	.nud('(', 10, (t, bp) => {
