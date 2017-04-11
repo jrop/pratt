@@ -193,6 +193,20 @@ export class ParserBuilder {
 	}
 
 	/**
+	 * Define both `led` and `nud` for a token type at once.
+	 * The supplied `LedFunction` may be called with a null `left`
+	 * parameter when invoked from a `nud` context.
+	 * @param {string} tokenType The token type
+	 * @param {number} bp The binding power
+	 * @param {LedFunction} fn The function that will parse the token
+	 * @return {ParserBuilder} Returns this ParserBuilder
+	 */
+	either(tokenType: string, bp: number, fn: LedFunction): ParserBuilder {
+		return this.nud(tokenType, bp, (t, bp) => fn(null, t, bp))
+			.led(tokenType, bp, fn)
+	}
+
+	/**
 	 * Define the binding power for a token type
 	 * @param {string} tokenType The token type
 	 * @param {number} bp The binding power
