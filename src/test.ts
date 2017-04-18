@@ -44,4 +44,6 @@ assert.equal(evaluate('-1-3'), -4)
 assert.equal(evaluate('2*-3'), -6)
 assert.equal(evaluate('-2*3'), -6)
 
+assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
+
 console.log('All tests passed')

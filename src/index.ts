@@ -1,6 +1,15 @@
+export interface IPosition {
+	line: number
+	column: number
+}
+export interface ITokenPosition {
+	start: IPosition
+	end: IPosition
+}
 export interface IToken {
 	type: string
 	match: string
+	strpos(): ITokenPosition
 }
 export interface ILexer {
 	next(): IToken
@@ -116,7 +125,8 @@ export class Parser {
 	nud(token: IToken) {
 		let fn: NudFunction = this._nuds.get(token.type)
 		if (!fn) fn = () => {
-			throw new Error(`Unexpected token: ${token.match}`)
+			const {start} = token.strpos()
+			throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`)
 		}
 		return fn(token, this.bp(token))
 	}
@@ -131,7 +141,8 @@ export class Parser {
 		const bp = this.bp(token)
 		let fn = this._leds.get(token.type)
 		if (!fn) fn = () => {
-			throw new Error(`Unexpected token: ${token.match}`)
+			const {start} = token.strpos()
+			throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`)
 		}
 		return fn(left, token, bp)
 	}
