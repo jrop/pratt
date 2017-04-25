@@ -432,6 +432,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/index.js~parserbuilder#either",
+    "class/lib/index.js~ParserBuilder.html#instance-method-either",
+    "lib/index.js~ParserBuilder#either",
+    "method"
+  ],
+  [
     "lib/index.js~parserbuilder#led",
     "class/lib/index.js~ParserBuilder.html#instance-method-led",
     "lib/index.js~ParserBuilder#led",

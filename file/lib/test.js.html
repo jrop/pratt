@@ -55,11 +55,11 @@ const lex = perplex(&apos;&apos;)
     .token(&apos;^&apos;, /\^/)
     .token(&apos;(&apos;, /\(/)
     .token(&apos;)&apos;, /\)/)
-    .token(&apos;$SKIP_WS&apos;, /\s+/);
+    .token(&apos;WS&apos;, /\s+/, true);
 const parser = new Parser(lex)
     .builder()
+    .bp(&apos;EOF&apos;, -1)
     .nud(&apos;NUM&apos;, 100, t =&gt; parseInt(t.match))
-    .nud(&apos;-&apos;, 10, (t, bp) =&gt; -parser.parse(bp))
     .nud(&apos;(&apos;, 10, (t, bp) =&gt; {
     const expr = parser.parse(bp);
     lex.expect(&apos;)&apos;);
@@ -68,7 +68,7 @@ const parser = new Parser(lex)
     .bp(&apos;)&apos;, 0)
     .led(&apos;^&apos;, 20, (left, t, bp) =&gt; Math.pow(left, parser.parse(bp - 1)))
     .led(&apos;+&apos;, 30, (left, t, bp) =&gt; left + parser.parse(bp))
-    .led(&apos;-&apos;, 30, (left, t, bp) =&gt; left - parser.parse(bp))
+    .either(&apos;-&apos;, 30, (left, t, bp) =&gt; (left || 0) - parser.parse(bp))
     .led(&apos;*&apos;, 40, (left, t, bp) =&gt; left * parser.parse(bp))
     .led(&apos;/&apos;, 40, (left, t, bp) =&gt; left / parser.parse(bp))
     .build();
@@ -83,6 +83,7 @@ assert.equal(evaluate(&apos;4^3^2^1&apos;), Math.pow(4, 9));
 assert.equal(evaluate(&apos;-1-3&apos;), -4);
 assert.equal(evaluate(&apos;2*-3&apos;), -6);
 assert.equal(evaluate(&apos;-2*3&apos;), -6);
+assert.throws(() =&gt; evaluate(&apos;1+ +&apos;), /Unexpected token: \+ \(at 1:4\)/);
 console.log(&apos;All tests passed&apos;);
 //# sourceMappingURL=test.js.map</code></pre>
 

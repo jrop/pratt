@@ -123,7 +123,8 @@ export class Parser {
      * @returns {number} The binding power of the specified token type
      */
     bp(tokenOrType) {
-        return this._bps.get(this._type(tokenOrType)) || Number.NaN;
+        const type = this._type(tokenOrType);
+        return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;
     }
     /**
      * Computes the token&apos;s `nud` value and returns it
@@ -134,7 +135,8 @@ export class Parser {
         let fn = this._nuds.get(token.type);
         if (!fn)
             fn = () =&gt; {
-                throw new Error(`Unexpected token: ${token.match}`);
+                const { start } = token.strpos();
+                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);
             };
         return fn(token, this.bp(token));
     }
@@ -149,18 +151,33 @@ export class Parser {
         let fn = this._leds.get(token.type);
         if (!fn)
             fn = () =&gt; {
-                throw new Error(`Unexpected token: ${token.match}`);
+                const { start } = token.strpos();
+                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);
             };
         return fn(left, token, bp);
     }
     /**
-     * Kicks of the Pratt parser, and returns the result
-     * @param {number} [rbp=0] The right binding power
+     * Kicks off the Pratt parser, and returns the result
+     * @param {number[]|string[]} rbpsOrTypes The right-binding-powers/token-types at which to stop
      * @returns {any}
      */
-    parse(rbp = 0) {
+    parse(...rbpsOrTypes) {
+        const check = () =&gt; {
+            let t = this.lexer.peek();
+            const bp = this.bp(t);
+            return rbpsOrTypes.reduce((canContinue, rbpOrType) =&gt; {
+                if (!canContinue)
+                    return false;
+                if (typeof rbpOrType == &apos;number&apos;)
+                    return rbpOrType &lt; bp;
+                if (typeof rbpOrType == &apos;string&apos;)
+                    return t.type != rbpOrType;
+            }, true);
+        };
+        if (rbpsOrTypes.length == 0)
+            rbpsOrTypes.push(0);
         let left = this.nud(this.lexer.next());
-        while (rbp &lt; this.bp(this.lexer.peek())) {
+        while (check()) {
             const operator = this.lexer.next();
             left = this.led(left, operator);
         }
@@ -202,6 +219,19 @@ export class ParserBuilder {
         this._parser._leds.set(tokenType, fn);
         this.bp(tokenType, bp);
         return this;
+    }
+    /**
+     * Define both `led` and `nud` for a token type at once.
+     * The supplied `LedFunction` may be called with a null `left`
+     * parameter when invoked from a `nud` context.
+     * @param {string} tokenType The token type
+     * @param {number} bp The binding power
+     * @param {LedFunction} fn The function that will parse the token
+     * @return {ParserBuilder} Returns this ParserBuilder
+     */
+    either(tokenType, bp, fn) {
+        return this.nud(tokenType, bp, (t, bp) =&gt; fn(null, t, bp))
+            .led(tokenType, bp, fn);
     }
     /**
      * Define the binding power for a token type

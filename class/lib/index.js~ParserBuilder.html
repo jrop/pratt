@@ -43,13 +43,13 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {ParserBuilder} from &apos;<span><a href="file/lib/index.js.html#lineNumber128">pratt</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {ParserBuilder} from &apos;<span><a href="file/lib/index.js.html#lineNumber145">pratt</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/index.js.html#lineNumber128">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/index.js.html#lineNumber145">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -194,6 +194,34 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
         <p>
           
           
+          <span data-ice="name"><span><a href="class/lib/index.js~ParserBuilder.html#instance-method-either">either</a></span></span><span data-ice="signature">(tokenType: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, bp: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span>, fn: <span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span>): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Define both <code>led</code> and <code>nud</code> for a token type at once.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
           <span data-ice="name"><span><a href="class/lib/index.js~ParserBuilder.html#instance-method-led">led</a></span></span><span data-ice="signature">(tokenType: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, bp: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span>, fn: <span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span>): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span>
         </p>
       </div>
@@ -259,7 +287,7 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber134">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber151">source</a></span></span>
     </span>
   </h3>
 
@@ -325,7 +353,7 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber167">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber197">source</a></span></span>
     </span>
   </h3>
 
@@ -406,7 +434,7 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber175">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber205">source</a></span></span>
     </span>
   </h3>
 
@@ -451,6 +479,96 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
   
 </div>
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-either">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    
+    
+    <span data-ice="name">either</span><span data-ice="signature">(tokenType: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, bp: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span>, fn: <span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span>): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber187">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Define both <code>led</code> and <code>nud</code> for a token type at once.
+The supplied <code>LedFunction</code> may be called with a null <code>left</code>
+parameter when invoked from a <code>nud</code> context.</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" data-depth="0">tokenType</td>
+      <td data-ice="type"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>The token type</p>
+</td>
+    </tr>
+<tr data-ice="property" data-depth="0">
+      <td data-ice="name" data-depth="0">bp</td>
+      <td data-ice="type"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>The binding power</p>
+</td>
+    </tr>
+<tr data-ice="property" data-depth="0">
+      <td data-ice="name" data-depth="0">fn</td>
+      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>The function that will parse the token</p>
+</td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type" data-ice="returnType"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></td>
+          <td class="return-desc" data-ice="returnDescription"><p>Returns this ParserBuilder</p>
+</td>
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-method-led">
     <span class="access" data-ice="access">public</span>
     
@@ -462,7 +580,7 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber156">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber173">source</a></span></span>
     </span>
   </h3>
 
@@ -550,7 +668,7 @@ See also: <span><a href="class/lib/index.js~Parser.html#instance-method-builder"
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber144">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber161">source</a></span></span>
     </span>
   </h3>
 
