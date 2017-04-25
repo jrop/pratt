@@ -9,9 +9,9 @@
     "test": "tsc && node lib/test.js"
   },
   "devDependencies": {
-    "@types/node": "^7.0.12",
+    "@types/node": "^7.0.13",
     "esdoc": "^0.5.2",
-    "perplex": "^0.7.1",
+    "perplex": "^0.8.0",
     "typescript": "^2.2.2"
   },
   "files": [

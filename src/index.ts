@@ -148,13 +148,25 @@ export class Parser {
 	}
 
 	/**
-	 * Kicks of the Pratt parser, and returns the result
-	 * @param {number} [rbp=0] The right binding power
+	 * Kicks off the Pratt parser, and returns the result
+	 * @param {number[]|string[]} rbpsOrTypes The right-binding-powers/token-types at which to stop
 	 * @returns {any}
 	 */
-	parse(rbp: number = 0): any {
+	parse(...rbpsOrTypes: (number|string)[]): any {
+		const check = () => {
+			let t = this.lexer.peek()
+			const bp = this.bp(t)
+			return rbpsOrTypes.reduce((canContinue, rbpOrType) => {
+				if (!canContinue) return false
+				if (typeof rbpOrType == 'number') return rbpOrType < bp
+				if (typeof rbpOrType == 'string') return t.type != rbpOrType
+			}, true)
+		}
+		if (rbpsOrTypes.length == 0)
+			rbpsOrTypes.push(0)
+
 		let left = this.nud(this.lexer.next())
-		while (rbp < this.bp(this.lexer.peek())) {
+		while (check()) {
 			const operator = this.lexer.next()
 			left = this.led(left, operator)
 		}

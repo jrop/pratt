@@ -11,11 +11,11 @@ const lex = perplex('')
 	.token('^', /\^/)
 	.token('(', /\(/)
 	.token(')', /\)/)
-	.token('$SKIP_WS', /\s+/)
+	.token('WS', /\s+/, true)
 
 const parser: Parser = new Parser(lex)
 	.builder()
-	.bp('$EOF', -1)
+	.bp('EOF', -1)
 	.nud('NUM', 100, t => parseInt(t.match))
 	.nud('(', 10, (t, bp) => {
 		const expr = parser.parse(bp)
