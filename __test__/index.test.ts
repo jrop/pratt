@@ -1,8 +1,8 @@
 import * as assert from 'assert'
-import * as perplex from 'perplex'
-import {Parser} from './index'
+import Lexer from 'perplex'
+import {Parser} from '../src/index'
 
-const lex = perplex('')
+const lex = new Lexer<string>()
 	.token('NUM', /\d+/)
 	.token('+', /\+/)
 	.token('-', /-/)
@@ -13,7 +13,7 @@ const lex = perplex('')
 	.token(')', /\)/)
 	.token('WS', /\s+/, true)
 
-const parser: Parser = new Parser(lex)
+const parser: Parser<string> = new Parser<string>(lex)
 	.builder()
 	.bp('EOF', -1)
 	.nud('NUM', 100, t => parseInt(t.match))
@@ -36,14 +36,21 @@ function evaluate(s): number {
 	return parser.parse()
 }
 
-assert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25)
-assert.equal(evaluate('1^2^3'), 1)
-assert.equal(evaluate('(1/2)^-1'), 2)
-assert.equal(evaluate('4^3^2^1'), Math.pow(4, 9))
-assert.equal(evaluate('-1-3'), -4)
-assert.equal(evaluate('2*-3'), -6)
-assert.equal(evaluate('-2*3'), -6)
+test('1 + 2 * (3 + 1) * 3', () =>
+	assert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25))
+test('1^2^3', () =>
+	assert.equal(evaluate('1^2^3'), 1))
+test('(1/2)^-1', () =>
+	assert.equal(evaluate('(1/2)^-1'), 2))
+test('4^3^2^1', () =>
+	assert.equal(evaluate('4^3^2^1'), Math.pow(4, 9)))
+test('-1-3', () =>
+	assert.equal(evaluate('-1-3'), -4))
+test('2*-3', () =>
+	assert.equal(evaluate('2*-3'), -6))
+test('-2*3', () =>
+	assert.equal(evaluate('-2*3'), -6))
 
-assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
+test('1+ +', () =>
+	assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/))
 
-console.log('All tests passed')
