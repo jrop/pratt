@@ -44,9 +44,9 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/test.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import * as assert from &apos;assert&apos;;
-import * as perplex from &apos;perplex&apos;;
+import Lexer from &apos;perplex&apos;;
 import { Parser } from &apos;./index&apos;;
-const lex = perplex(&apos;&apos;)
+const lex = new Lexer(&apos;&apos;)
     .token(&apos;NUM&apos;, /\d+/)
     .token(&apos;+&apos;, /\+/)
     .token(&apos;-&apos;, /-/)

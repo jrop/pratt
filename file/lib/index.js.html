@@ -50,18 +50,18 @@
  * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction
  */
 /**
- * @typedef {{type: string, match: string}} IToken
+ * @typedef {{type: string, match: string, isEof: () =&gt; boolean}} IToken
  */
 /**
  * @typedef {{
- *   next: () =&gt; IToken,
- *   peek: () =&gt; IToken
+ *   next: () =&gt; IToken&lt;T&gt;,
+ *   peek: () =&gt; IToken&lt;T&gt;
  * }} ILexer
  */
 /**
  * A Pratt parser.
  * @example
- * const lex = perplex(&apos;1 + -2 * 3^4&apos;)
+ * const lex = new perplex.Lexer(&apos;1 + -2 * 3^4&apos;)
  *   .token(&apos;NUM&apos;, /\d+/)
  *   .token(&apos;+&apos;, /\+/)
  *   .token(&apos;-&apos;, /-/)
@@ -95,12 +95,12 @@
 export class Parser {
     /**
      * Constructs a Parser instance
-     * @param {ILexer} lexer The lexer to obtain tokens from
+     * @param {ILexer&lt;T&gt;} lexer The lexer to obtain tokens from
      */
     constructor(lexer) {
         /**
          * The lexer that this parser is operating on.
-         * @type {ILexer}
+         * @type {ILexer&lt;T&gt;}
          */
         this.lexer = lexer;
         this._nuds = new Map();
@@ -108,27 +108,33 @@ export class Parser {
         this._bps = new Map();
     }
     _type(tokenOrType) {
-        return typeof tokenOrType == &apos;string&apos; ? tokenOrType : tokenOrType.type;
+        return tokenOrType &amp;&amp; typeof tokenOrType.isEof == &apos;function&apos; ?
+            tokenOrType.type :
+            tokenOrType;
     }
     /**
      * Create a {@link ParserBuilder}
-     * @return {ParserBuilder} Returns the ParserBuilder
+     * @return {ParserBuilder&lt;T&gt;} Returns the ParserBuilder
      */
     builder() {
         return new ParserBuilder(this);
     }
     /**
      * Define binding power for a token-type
-     * @param {IToken|string} tokenOrType The token type to define the binding power for
+     * @param {IToken&lt;T&gt;|T} tokenOrType The token type to define the binding power for
      * @returns {number} The binding power of the specified token type
      */
     bp(tokenOrType) {
+        if (tokenOrType == null)
+            return Number.NEGATIVE_INFINITY;
+        if (tokenOrType &amp;&amp; typeof tokenOrType.isEof == &apos;function&apos; &amp;&amp; tokenOrType.isEof())
+            return Number.NEGATIVE_INFINITY;
         const type = this._type(tokenOrType);
         return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;
     }
     /**
      * Computes the token&apos;s `nud` value and returns it
-     * @param {IToken} token The token to compute the `nud` from
+     * @param {IToken&lt;T&gt;} token The token to compute the `nud` from
      * @returns {any} The result of invoking the pertinent `nud` operator
      */
     nud(token) {
@@ -143,7 +149,7 @@ export class Parser {
     /**
      * Computes a token&apos;s `led` value and returns it
      * @param {any} left The left value
-     * @param {IToken} token The token to compute the `led` value for
+     * @param {Token&lt;T&gt;} token The token to compute the `led` value for
      * @returns {any} The result of invoking the pertinent `led` operator
      */
     led(left, token) {
@@ -158,7 +164,7 @@ export class Parser {
     }
     /**
      * Kicks off the Pratt parser, and returns the result
-     * @param {number[]|string[]} rbpsOrTypes The right-binding-powers/token-types at which to stop
+     * @param {number[]|T[]} rbpsOrTypes The right-binding-powers/token-types at which to stop
      * @returns {any}
      */
     parse(...rbpsOrTypes) {
@@ -191,17 +197,17 @@ export class ParserBuilder {
     /**
      * Constructs a ParserBuilder
      * See also: {@link Parser.builder}
-     * @param {Parser} parser The parser
+     * @param {Parser&lt;T&gt;} parser The parser
      */
     constructor(parser) {
         this._parser = parser;
     }
     /**
      * Define `nud` for a token type
-     * @param {string} tokenType The token type
+     * @param {T} tokenType The token type
      * @param {number} bp The binding power
-     * @param {NudFunction} fn The function that will parse the token
-     * @return {ParserBuilder} Returns this ParserBuilder
+     * @param {NudFunction&lt;T&gt;} fn The function that will parse the token
+     * @return {ParserBuilder&lt;T&gt;} Returns this ParserBuilder
      */
     nud(tokenType, bp, fn) {
         this._parser._nuds.set(tokenType, fn);
@@ -210,10 +216,10 @@ export class ParserBuilder {
     }
     /**
      * Define `led` for a token type
-     * @param {string} tokenType The token type
+     * @param {T} tokenType The token type
      * @param {number} bp The binding power
-     * @param {LedFunction} fn The function that will parse the token
-     * @return {ParserBuilder} Returns this ParserBuilder
+     * @param {LedFunction&lt;T&gt;} fn The function that will parse the token
+     * @return {ParserBuilder&lt;T&gt;} Returns this ParserBuilder
      */
     led(tokenType, bp, fn) {
         this._parser._leds.set(tokenType, fn);
@@ -224,10 +230,10 @@ export class ParserBuilder {
      * Define both `led` and `nud` for a token type at once.
      * The supplied `LedFunction` may be called with a null `left`
      * parameter when invoked from a `nud` context.
-     * @param {string} tokenType The token type
+     * @param {strTng} tokenType The token type
      * @param {number} bp The binding power
-     * @param {LedFunction} fn The function that will parse the token
-     * @return {ParserBuilder} Returns this ParserBuilder
+     * @param {LedFunction&lt;T&gt;} fn The function that will parse the token
+     * @return {ParserBuilder&lt;T&gt;} Returns this ParserBuilder
      */
     either(tokenType, bp, fn) {
         return this.nud(tokenType, bp, (t, bp) =&gt; fn(null, t, bp))
@@ -235,9 +241,9 @@ export class ParserBuilder {
     }
     /**
      * Define the binding power for a token type
-     * @param {string} tokenType The token type
+     * @param {T} tokenType The token type
      * @param {number} bp The binding power
-     * @return {ParserBuilder} Returns this ParserBuilder
+     * @return {ParserBuilder&lt;T&gt;} Returns this ParserBuilder
      */
     bp(tokenType, bp) {
         this._parser._bps.set(tokenType, bp);
@@ -245,7 +251,7 @@ export class ParserBuilder {
     }
     /**
      * Returns the parent {@link Parser} instance
-     * @returns {Parser}
+     * @returns {Parser&lt;T&gt;}
      */
     build() {
         return this._parser;

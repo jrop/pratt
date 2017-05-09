@@ -61,8 +61,8 @@
           
           
           <span data-ice="name"><span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></span><span data-ice="signature">: <span>{
-  next: () =&gt; IToken,
-  peek: () =&gt; IToken
+  next: () =&gt; IToken&lt;T&gt;,
+  peek: () =&gt; IToken&lt;T&gt;
 }</span></span>
         </p>
       </div>
@@ -90,7 +90,7 @@
         <p>
           
           
-          <span data-ice="name"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></span><span data-ice="signature">: {type: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, match: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>}</span>
+          <span data-ice="name"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></span><span data-ice="signature">: {type: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, match: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, isEof: <span>() =&gt; boolean</span>}</span>
         </p>
       </div>
       <div>
@@ -172,8 +172,8 @@
     
     
     <span data-ice="name">ILexer</span><span data-ice="signature">: <span>{
-  next: () =&gt; IToken,
-  peek: () =&gt; IToken
+  next: () =&gt; IToken&lt;T&gt;,
+  peek: () =&gt; IToken&lt;T&gt;
 }</span></span>
     <span class="right-info">
       
@@ -217,7 +217,7 @@
     
     
     
-    <span data-ice="name">IToken</span><span data-ice="signature">: {type: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, match: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>}</span>
+    <span data-ice="name">IToken</span><span data-ice="signature">: {type: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, match: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, isEof: <span>() =&gt; boolean</span>}</span>
     <span class="right-info">
       
       

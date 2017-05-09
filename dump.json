@@ -3,7 +3,7 @@
     "__docId__": 0,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "/**\n * @typedef {function(token: IToken, bp: number): any} NudFunction\n */\n/**\n * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction\n */\n/**\n * @typedef {{type: string, match: string}} IToken\n */\n/**\n * @typedef {{\n *   next: () => IToken,\n *   peek: () => IToken\n * }} ILexer\n */\n/**\n * A Pratt parser.\n * @example\n * const lex = perplex('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        /**\n         * The lexer that this parser is operating on.\n         * @type {ILexer}\n         */\n        this.lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return typeof tokenOrType == 'string' ? tokenOrType : tokenOrType.type;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken|string} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        const type = this._type(tokenOrType);\n        return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {IToken} token The token to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(token) {\n        let fn = this._nuds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(token, this.bp(token));\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {any} left The left value\n     * @param {IToken} token The token to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(left, token) {\n        const bp = this.bp(token);\n        let fn = this._leds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(left, token, bp);\n    }\n    /**\n     * Kicks off the Pratt parser, and returns the result\n     * @param {number[]|string[]} rbpsOrTypes The right-binding-powers/token-types at which to stop\n     * @returns {any}\n     */\n    parse(...rbpsOrTypes) {\n        const check = () => {\n            let t = this.lexer.peek();\n            const bp = this.bp(t);\n            return rbpsOrTypes.reduce((canContinue, rbpOrType) => {\n                if (!canContinue)\n                    return false;\n                if (typeof rbpOrType == 'number')\n                    return rbpOrType < bp;\n                if (typeof rbpOrType == 'string')\n                    return t.type != rbpOrType;\n            }, true);\n        };\n        if (rbpsOrTypes.length == 0)\n            rbpsOrTypes.push(0);\n        let left = this.nud(this.lexer.next());\n        while (check()) {\n            const operator = this.lexer.next();\n            left = this.led(left, operator);\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define both `led` and `nud` for a token type at once.\n     * The supplied `LedFunction` may be called with a null `left`\n     * parameter when invoked from a `nud` context.\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction} fn The function that will parse the token\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    either(tokenType, bp, fn) {\n        return this.nud(tokenType, bp, (t, bp) => fn(null, t, bp))\n            .led(tokenType, bp, fn);\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {string} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
+    "content": "/**\n * @typedef {function(token: IToken, bp: number): any} NudFunction\n */\n/**\n * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction\n */\n/**\n * @typedef {{type: string, match: string, isEof: () => boolean}} IToken\n */\n/**\n * @typedef {{\n *   next: () => IToken<T>,\n *   peek: () => IToken<T>\n * }} ILexer\n */\n/**\n * A Pratt parser.\n * @example\n * const lex = new perplex.Lexer('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer<T>} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        /**\n         * The lexer that this parser is operating on.\n         * @type {ILexer<T>}\n         */\n        this.lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return tokenOrType && typeof tokenOrType.isEof == 'function' ?\n            tokenOrType.type :\n            tokenOrType;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder<T>} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken<T>|T} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        if (tokenOrType == null)\n            return Number.NEGATIVE_INFINITY;\n        if (tokenOrType && typeof tokenOrType.isEof == 'function' && tokenOrType.isEof())\n            return Number.NEGATIVE_INFINITY;\n        const type = this._type(tokenOrType);\n        return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {IToken<T>} token The token to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(token) {\n        let fn = this._nuds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(token, this.bp(token));\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {any} left The left value\n     * @param {Token<T>} token The token to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(left, token) {\n        const bp = this.bp(token);\n        let fn = this._leds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(left, token, bp);\n    }\n    /**\n     * Kicks off the Pratt parser, and returns the result\n     * @param {number[]|T[]} rbpsOrTypes The right-binding-powers/token-types at which to stop\n     * @returns {any}\n     */\n    parse(...rbpsOrTypes) {\n        const check = () => {\n            let t = this.lexer.peek();\n            const bp = this.bp(t);\n            return rbpsOrTypes.reduce((canContinue, rbpOrType) => {\n                if (!canContinue)\n                    return false;\n                if (typeof rbpOrType == 'number')\n                    return rbpOrType < bp;\n                if (typeof rbpOrType == 'string')\n                    return t.type != rbpOrType;\n            }, true);\n        };\n        if (rbpsOrTypes.length == 0)\n            rbpsOrTypes.push(0);\n        let left = this.nud(this.lexer.next());\n        while (check()) {\n            const operator = this.lexer.next();\n            left = this.led(left, operator);\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser<T>} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define both `led` and `nud` for a token type at once.\n     * The supplied `LedFunction` may be called with a null `left`\n     * parameter when invoked from a `nud` context.\n     * @param {strTng} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    either(tokenType, bp, fn) {\n        return this.nud(tokenType, bp, (t, bp) => fn(null, t, bp))\n            .led(tokenType, bp, fn);\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser<T>}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
     "static": true,
     "longname": "lib/index.js",
     "access": null,
@@ -55,7 +55,7 @@
     "description": "",
     "type": {
       "types": [
-        "{type: string, match: string}"
+        "{type: string, match: string, isEof: () => boolean}"
       ],
       "optional": false,
       "name": "IToken"
@@ -72,7 +72,7 @@
     "description": "",
     "type": {
       "types": [
-        "{\n  next: () => IToken,\n  peek: () => IToken\n}"
+        "{\n  next: () => IToken<T>,\n  peek: () => IToken<T>\n}"
       ],
       "optional": false,
       "name": "ILexer"
@@ -91,7 +91,7 @@
     "importStyle": "{Parser}",
     "description": "A Pratt parser.",
     "examples": [
-      "const lex = perplex('1 + -2 * 3^4')\n  .token('NUM', /\\d+/)\n  .token('+', /\\+/)\n  .token('-', /-/)\n  .token('*', new RegExp('*'))\n  .token('/', /\\//)\n  .token('^', /\\^/)\n  .token('(', /\\(/)\n  .token(')', /\\)/)\n  .token('$SKIP_WS', /\\s+/)\n\nconst parser = new Parser(lex)\n  .builder()\n  .nud('NUM', 100, t => parseInt(t.match))\n  .nud('-', 10, (t, bp) => -parser.parse(bp))\n  .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp)\n    lex.expect(')')\n    return expr\n  })\n  .bp(')', 0)\n\n  .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n  .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n  .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n  .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n  .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n  .build()\nparser.parse()\n// => 161"
+      "const lex = new perplex.Lexer('1 + -2 * 3^4')\n  .token('NUM', /\\d+/)\n  .token('+', /\\+/)\n  .token('-', /-/)\n  .token('*', new RegExp('*'))\n  .token('/', /\\//)\n  .token('^', /\\^/)\n  .token('(', /\\(/)\n  .token(')', /\\)/)\n  .token('$SKIP_WS', /\\s+/)\n\nconst parser = new Parser(lex)\n  .builder()\n  .nud('NUM', 100, t => parseInt(t.match))\n  .nud('-', 10, (t, bp) => -parser.parse(bp))\n  .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp)\n    lex.expect(')')\n    return expr\n  })\n  .bp(')', 0)\n\n  .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n  .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n  .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n  .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n  .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n  .build()\nparser.parse()\n// => 161"
     ],
     "lineNumber": 50,
     "interface": false
@@ -112,7 +112,7 @@
       {
         "nullable": null,
         "types": [
-          "ILexer"
+          "ILexer<T>"
         ],
         "spread": false,
         "optional": false,
@@ -134,7 +134,7 @@
     "type": {
       "nullable": null,
       "types": [
-        "ILexer"
+        "ILexer<T>"
       ],
       "spread": false,
       "description": null
@@ -253,12 +253,12 @@
     "longname": "lib/index.js~Parser#builder",
     "access": null,
     "description": "Create a {@link ParserBuilder}",
-    "lineNumber": 72,
+    "lineNumber": 74,
     "params": [],
     "return": {
       "nullable": null,
       "types": [
-        "ParserBuilder"
+        "ParserBuilder<T>"
       ],
       "spread": false,
       "description": "Returns the ParserBuilder"
@@ -275,7 +275,7 @@
     "longname": "lib/index.js~Parser#bp",
     "access": null,
     "description": "Define binding power for a token-type",
-    "lineNumber": 80,
+    "lineNumber": 82,
     "unknown": [
       {
         "tagName": "@returns",
@@ -286,8 +286,8 @@
       {
         "nullable": null,
         "types": [
-          "IToken",
-          "string"
+          "IToken<T>",
+          "T"
         ],
         "spread": false,
         "optional": false,
@@ -315,7 +315,7 @@
     "longname": "lib/index.js~Parser#nud",
     "access": null,
     "description": "Computes the token's `nud` value and returns it",
-    "lineNumber": 89,
+    "lineNumber": 95,
     "unknown": [
       {
         "tagName": "@returns",
@@ -326,7 +326,7 @@
       {
         "nullable": null,
         "types": [
-          "IToken"
+          "IToken<T>"
         ],
         "spread": false,
         "optional": false,
@@ -354,7 +354,7 @@
     "longname": "lib/index.js~Parser#led",
     "access": null,
     "description": "Computes a token's `led` value and returns it",
-    "lineNumber": 104,
+    "lineNumber": 110,
     "unknown": [
       {
         "tagName": "@returns",
@@ -375,7 +375,7 @@
       {
         "nullable": null,
         "types": [
-          "IToken"
+          "Token<T>"
         ],
         "spread": false,
         "optional": false,
@@ -403,7 +403,7 @@
     "longname": "lib/index.js~Parser#parse",
     "access": null,
     "description": "Kicks off the Pratt parser, and returns the result",
-    "lineNumber": 119,
+    "lineNumber": 125,
     "unknown": [
       {
         "tagName": "@returns",
@@ -415,7 +415,7 @@
         "nullable": null,
         "types": [
           "number[]",
-          "string[]"
+          "T[]"
         ],
         "spread": false,
         "optional": false,
@@ -444,7 +444,7 @@
     "importPath": "pratt",
     "importStyle": "{ParserBuilder}",
     "description": "Builds `led`/`nud` rules for a {@link Parser}",
-    "lineNumber": 145,
+    "lineNumber": 151,
     "interface": false
   },
   {
@@ -458,12 +458,12 @@
     "longname": "lib/index.js~ParserBuilder#constructor",
     "access": null,
     "description": "Constructs a ParserBuilder\nSee also: {@link Parser.builder}",
-    "lineNumber": 151,
+    "lineNumber": 157,
     "params": [
       {
         "nullable": null,
         "types": [
-          "Parser"
+          "Parser<T>"
         ],
         "spread": false,
         "optional": false,
@@ -481,7 +481,7 @@
     "longname": "lib/index.js~ParserBuilder#_parser",
     "access": null,
     "description": null,
-    "lineNumber": 152,
+    "lineNumber": 158,
     "undocument": true,
     "unknown": [
       {
@@ -506,12 +506,12 @@
     "longname": "lib/index.js~ParserBuilder#nud",
     "access": null,
     "description": "Define `nud` for a token type",
-    "lineNumber": 161,
+    "lineNumber": 167,
     "params": [
       {
         "nullable": null,
         "types": [
-          "string"
+          "T"
         ],
         "spread": false,
         "optional": false,
@@ -531,7 +531,7 @@
       {
         "nullable": null,
         "types": [
-          "NudFunction"
+          "NudFunction<T>"
         ],
         "spread": false,
         "optional": false,
@@ -542,7 +542,7 @@
     "return": {
       "nullable": null,
       "types": [
-        "ParserBuilder"
+        "ParserBuilder<T>"
       ],
       "spread": false,
       "description": "Returns this ParserBuilder"
@@ -559,12 +559,12 @@
     "longname": "lib/index.js~ParserBuilder#led",
     "access": null,
     "description": "Define `led` for a token type",
-    "lineNumber": 173,
+    "lineNumber": 179,
     "params": [
       {
         "nullable": null,
         "types": [
-          "string"
+          "T"
         ],
         "spread": false,
         "optional": false,
@@ -584,7 +584,7 @@
       {
         "nullable": null,
         "types": [
-          "LedFunction"
+          "LedFunction<T>"
         ],
         "spread": false,
         "optional": false,
@@ -595,7 +595,7 @@
     "return": {
       "nullable": null,
       "types": [
-        "ParserBuilder"
+        "ParserBuilder<T>"
       ],
       "spread": false,
       "description": "Returns this ParserBuilder"
@@ -612,12 +612,12 @@
     "longname": "lib/index.js~ParserBuilder#either",
     "access": null,
     "description": "Define both `led` and `nud` for a token type at once.\nThe supplied `LedFunction` may be called with a null `left`\nparameter when invoked from a `nud` context.",
-    "lineNumber": 187,
+    "lineNumber": 193,
     "params": [
       {
         "nullable": null,
         "types": [
-          "string"
+          "strTng"
         ],
         "spread": false,
         "optional": false,
@@ -637,7 +637,7 @@
       {
         "nullable": null,
         "types": [
-          "LedFunction"
+          "LedFunction<T>"
         ],
         "spread": false,
         "optional": false,
@@ -648,7 +648,7 @@
     "return": {
       "nullable": null,
       "types": [
-        "ParserBuilder"
+        "ParserBuilder<T>"
       ],
       "spread": false,
       "description": "Returns this ParserBuilder"
@@ -665,12 +665,12 @@
     "longname": "lib/index.js~ParserBuilder#bp",
     "access": null,
     "description": "Define the binding power for a token type",
-    "lineNumber": 197,
+    "lineNumber": 203,
     "params": [
       {
         "nullable": null,
         "types": [
-          "string"
+          "T"
         ],
         "spread": false,
         "optional": false,
@@ -691,7 +691,7 @@
     "return": {
       "nullable": null,
       "types": [
-        "ParserBuilder"
+        "ParserBuilder<T>"
       ],
       "spread": false,
       "description": "Returns this ParserBuilder"
@@ -708,18 +708,18 @@
     "longname": "lib/index.js~ParserBuilder#build",
     "access": null,
     "description": "Returns the parent {@link Parser} instance",
-    "lineNumber": 205,
+    "lineNumber": 211,
     "unknown": [
       {
         "tagName": "@returns",
-        "tagValue": "{Parser}"
+        "tagValue": "{Parser<T>}"
       }
     ],
     "params": [],
     "return": {
       "nullable": null,
       "types": [
-        "Parser"
+        "Parser<T>"
       ],
       "spread": false,
       "description": ""
@@ -729,7 +729,7 @@
     "__docId__": 25,
     "kind": "file",
     "name": "lib/test.js",
-    "content": "import * as assert from 'assert';\nimport * as perplex from 'perplex';\nimport { Parser } from './index';\nconst lex = perplex('')\n    .token('NUM', /\\d+/)\n    .token('+', /\\+/)\n    .token('-', /-/)\n    .token('*', /\\*/)\n    .token('/', /\\//)\n    .token('^', /\\^/)\n    .token('(', /\\(/)\n    .token(')', /\\)/)\n    .token('WS', /\\s+/, true);\nconst parser = new Parser(lex)\n    .builder()\n    .bp('EOF', -1)\n    .nud('NUM', 100, t => parseInt(t.match))\n    .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp);\n    lex.expect(')');\n    return expr;\n})\n    .bp(')', 0)\n    .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n    .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n    .either('-', 30, (left, t, bp) => (left || 0) - parser.parse(bp))\n    .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n    .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n    .build();\nfunction evaluate(s) {\n    lex.source = s;\n    return parser.parse();\n}\nassert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25);\nassert.equal(evaluate('1^2^3'), 1);\nassert.equal(evaluate('(1/2)^-1'), 2);\nassert.equal(evaluate('4^3^2^1'), Math.pow(4, 9));\nassert.equal(evaluate('-1-3'), -4);\nassert.equal(evaluate('2*-3'), -6);\nassert.equal(evaluate('-2*3'), -6);\nassert.throws(() => evaluate('1+ +'), /Unexpected token: \\+ \\(at 1:4\\)/);\nconsole.log('All tests passed');\n//# sourceMappingURL=test.js.map",
+    "content": "import * as assert from 'assert';\nimport Lexer from 'perplex';\nimport { Parser } from './index';\nconst lex = new Lexer('')\n    .token('NUM', /\\d+/)\n    .token('+', /\\+/)\n    .token('-', /-/)\n    .token('*', /\\*/)\n    .token('/', /\\//)\n    .token('^', /\\^/)\n    .token('(', /\\(/)\n    .token(')', /\\)/)\n    .token('WS', /\\s+/, true);\nconst parser = new Parser(lex)\n    .builder()\n    .bp('EOF', -1)\n    .nud('NUM', 100, t => parseInt(t.match))\n    .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp);\n    lex.expect(')');\n    return expr;\n})\n    .bp(')', 0)\n    .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n    .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n    .either('-', 30, (left, t, bp) => (left || 0) - parser.parse(bp))\n    .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n    .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n    .build();\nfunction evaluate(s) {\n    lex.source = s;\n    return parser.parse();\n}\nassert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25);\nassert.equal(evaluate('1^2^3'), 1);\nassert.equal(evaluate('(1/2)^-1'), 2);\nassert.equal(evaluate('4^3^2^1'), Math.pow(4, 9));\nassert.equal(evaluate('-1-3'), -4);\nassert.equal(evaluate('2*-3'), -6);\nassert.equal(evaluate('-2*3'), -6);\nassert.throws(() => evaluate('1+ +'), /Unexpected token: \\+ \\(at 1:4\\)/);\nconsole.log('All tests passed');\n//# sourceMappingURL=test.js.map",
     "static": true,
     "longname": "lib/test.js",
     "access": null,

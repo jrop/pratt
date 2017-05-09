@@ -80,7 +80,7 @@
     
   <div class="example-doc" data-ice="exampleDoc">
       
-      <pre class="prettyprint source-code"><code data-ice="exampleCode">const lex = perplex(&apos;1 + -2 * 3^4&apos;)
+      <pre class="prettyprint source-code"><code data-ice="exampleCode">const lex = new perplex.Lexer(&apos;1 + -2 * 3^4&apos;)
   .token(&apos;NUM&apos;, /\d+/)
   .token(&apos;+&apos;, /\+/)
   .token(&apos;-&apos;, /-/)
@@ -137,7 +137,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-constructor-constructor">constructor</a></span></span><span data-ice="signature">(lexer: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>)</span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-constructor-constructor">constructor</a></span></span><span data-ice="signature">(lexer: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>&lt;<span>T</span>&gt;)</span>
         </p>
       </div>
       <div>
@@ -172,7 +172,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-member-lexer">lexer</a></span></span><span data-ice="signature">: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-member-lexer">lexer</a></span></span><span data-ice="signature">: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>&lt;<span>T</span>&gt;</span>
         </p>
       </div>
       <div>
@@ -207,7 +207,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-bp">bp</a></span></span><span data-ice="signature">(tokenOrType: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-bp">bp</a></span></span><span data-ice="signature">(tokenOrType: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt; | <span>T</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></span>
         </p>
       </div>
       <div>
@@ -235,7 +235,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-builder">builder</a></span></span><span data-ice="signature">(): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-builder">builder</a></span></span><span data-ice="signature">(): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span>&lt;<span>T</span>&gt;</span>
         </p>
       </div>
       <div>
@@ -263,7 +263,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-led">led</a></span></span><span data-ice="signature">(left: <span>any</span>, token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>): <span>any</span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-led">led</a></span></span><span data-ice="signature">(left: <span>any</span>, token: <span>Token</span>&lt;<span>T</span>&gt;): <span>any</span></span>
         </p>
       </div>
       <div>
@@ -291,7 +291,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-nud">nud</a></span></span><span data-ice="signature">(token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>): <span>any</span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-nud">nud</a></span></span><span data-ice="signature">(token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt;): <span>any</span></span>
         </p>
       </div>
       <div>
@@ -319,7 +319,7 @@ parser.parse()
         <p>
           
           
-          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-parse">parse</a></span></span><span data-ice="signature">(rbpsOrTypes: <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span><span>[]</span></span>): <span>any</span></span>
+          <span data-ice="name"><span><a href="class/lib/index.js~Parser.html#instance-method-parse">parse</a></span></span><span data-ice="signature">(rbpsOrTypes: <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span>T</span><span>[]</span></span>): <span>any</span></span>
         </p>
       </div>
       <div>
@@ -352,7 +352,7 @@ parser.parse()
     
     
     
-    <span data-ice="name">constructor</span><span data-ice="signature">(lexer: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>)</span>
+    <span data-ice="name">constructor</span><span data-ice="signature">(lexer: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>&lt;<span>T</span>&gt;)</span>
     <span class="right-info">
       
       
@@ -378,7 +378,7 @@ parser.parse()
     
     <tr data-ice="property" data-depth="0">
       <td data-ice="name" data-depth="0">lexer</td>
-      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></td>
+      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>&lt;<span>T</span>&gt;</td>
       <td data-ice="appendix"></td>
       <td data-ice="description"><p>The lexer to obtain tokens from</p>
 </td>
@@ -416,7 +416,7 @@ parser.parse()
     
     
     
-    <span data-ice="name">lexer</span><span data-ice="signature">: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></span>
+    <span data-ice="name">lexer</span><span data-ice="signature">: <span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span>&lt;<span>T</span>&gt;</span>
     <span class="right-info">
       
       
@@ -463,11 +463,11 @@ parser.parse()
     
     
     
-    <span data-ice="name">bp</span><span data-ice="signature">(tokenOrType: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></span>
+    <span data-ice="name">bp</span><span data-ice="signature">(tokenOrType: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt; | <span>T</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber80">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber82">source</a></span></span>
     </span>
   </h3>
 
@@ -489,7 +489,7 @@ parser.parse()
     
     <tr data-ice="property" data-depth="0">
       <td data-ice="name" data-depth="0">tokenOrType</td>
-      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt; | <span>T</span></td>
       <td data-ice="appendix"></td>
       <td data-ice="description"><p>The token type to define the binding power for</p>
 </td>
@@ -537,11 +537,11 @@ parser.parse()
     
     
     
-    <span data-ice="name">builder</span><span data-ice="signature">(): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span>
+    <span data-ice="name">builder</span><span data-ice="signature">(): <span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span>&lt;<span>T</span>&gt;</span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber72">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber74">source</a></span></span>
     </span>
   </h3>
 
@@ -561,7 +561,7 @@ parser.parse()
     <table>
       <tbody>
         <tr>
-          <td class="return-type" data-ice="returnType"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></td>
+          <td class="return-type" data-ice="returnType"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span>&lt;<span>T</span>&gt;</td>
           <td class="return-desc" data-ice="returnDescription"><p>Returns the ParserBuilder</p>
 </td>
         </tr>
@@ -594,11 +594,11 @@ parser.parse()
     
     
     
-    <span data-ice="name">led</span><span data-ice="signature">(left: <span>any</span>, token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>): <span>any</span></span>
+    <span data-ice="name">led</span><span data-ice="signature">(left: <span>any</span>, token: <span>Token</span>&lt;<span>T</span>&gt;): <span>any</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber104">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber110">source</a></span></span>
     </span>
   </h3>
 
@@ -627,7 +627,7 @@ parser.parse()
     </tr>
 <tr data-ice="property" data-depth="0">
       <td data-ice="name" data-depth="0">token</td>
-      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></td>
+      <td data-ice="type"><span>Token</span>&lt;<span>T</span>&gt;</td>
       <td data-ice="appendix"></td>
       <td data-ice="description"><p>The token to compute the <code>led</code> value for</p>
 </td>
@@ -675,11 +675,11 @@ parser.parse()
     
     
     
-    <span data-ice="name">nud</span><span data-ice="signature">(token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>): <span>any</span></span>
+    <span data-ice="name">nud</span><span data-ice="signature">(token: <span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt;): <span>any</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber89">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber95">source</a></span></span>
     </span>
   </h3>
 
@@ -701,7 +701,7 @@ parser.parse()
     
     <tr data-ice="property" data-depth="0">
       <td data-ice="name" data-depth="0">token</td>
-      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></td>
+      <td data-ice="type"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span>&lt;<span>T</span>&gt;</td>
       <td data-ice="appendix"></td>
       <td data-ice="description"><p>The token to compute the <code>nud</code> from</p>
 </td>
@@ -749,11 +749,11 @@ parser.parse()
     
     
     
-    <span data-ice="name">parse</span><span data-ice="signature">(rbpsOrTypes: <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span><span>[]</span></span>): <span>any</span></span>
+    <span data-ice="name">parse</span><span data-ice="signature">(rbpsOrTypes: <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span>T</span><span>[]</span></span>): <span>any</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber119">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/index.js.html#lineNumber125">source</a></span></span>
     </span>
   </h3>
 
@@ -775,7 +775,7 @@ parser.parse()
     
     <tr data-ice="property" data-depth="0">
       <td data-ice="name" data-depth="0">rbpsOrTypes</td>
-      <td data-ice="type"><span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span><span>[]</span></span></td>
+      <td data-ice="type"><span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span><span>[]</span></span> | <span><span>T</span><span>[]</span></span></td>
       <td data-ice="appendix"></td>
       <td data-ice="description"><p>The right-binding-powers/token-types at which to stop</p>
 </td>
