@@ -76,7 +76,7 @@ export type LedMap<T> = Map<T, LedFunction<T>>
  * // => 161
  */
 export class Parser<T> {
-	protected lexer: ILexer<T>
+	public lexer: ILexer<T>
 	_nuds: NudMap<T>
 	_leds: LedMap<T>
 	_bps: Map<T, number>
