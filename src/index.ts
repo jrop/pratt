@@ -17,10 +17,13 @@ export interface ILexer<T> {
 	peek(): IToken<T>
 }
 
-export type NudFunction<T> = (token: IToken<T>, bp: number) => any
-export type LedFunction<T> = (left: any, token: IToken<T>, bp: number) => any
+export type StopFunction = <T>(x: T) => T
+export type NudFunction<T> = (token: IToken<T>, bp: number, stop: StopFunction) => any
+export type LedFunction<T> = (left: any, token: IToken<T>, bp: number, stop: StopFunction) => any
 export type NudMap<T> = Map<T, NudFunction<T>>
 export type LedMap<T> = Map<T, LedFunction<T>>
+
+const STOP_DEFAULT: StopFunction = <T>(x: T) => x
 
 /**
  * @typedef {function(token: IToken, bp: number): any} NudFunction
@@ -129,13 +132,13 @@ export class Parser<T> {
 	 * @param {IToken<T>} token The token to compute the `nud` from
 	 * @returns {any} The result of invoking the pertinent `nud` operator
 	 */
-	nud(token: IToken<T>) {
+	nud(token: IToken<T>, stop: StopFunction = STOP_DEFAULT) {
 		let fn: NudFunction<T> = this._nuds.get(token.type)
 		if (!fn) fn = () => {
 			const {start} = token.strpos()
 			throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`)
 		}
-		return fn(token, this.bp(token))
+		return fn(token, this.bp(token), stop)
 	}
 
 	/**
@@ -144,14 +147,14 @@ export class Parser<T> {
 	 * @param {Token<T>} token The token to compute the `led` value for
 	 * @returns {any} The result of invoking the pertinent `led` operator
 	 */
-	led(left: any, token: IToken<T>) {
+	led(left: any, token: IToken<T>, stop: StopFunction = STOP_DEFAULT) {
 		const bp = this.bp(token)
 		let fn = this._leds.get(token.type)
 		if (!fn) fn = () => {
 			const {start} = token.strpos()
 			throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`)
 		}
-		return fn(left, token, bp)
+		return fn(left, token, bp, stop)
 	}
 
 	/**
@@ -160,7 +163,13 @@ export class Parser<T> {
 	 * @returns {any}
 	 */
 	parse(...rbpsOrTypes: (number|T)[]): any {
+		let stopCalled = false
+		const stop: StopFunction = (x) => {
+			stopCalled = true
+			return x
+		}
 		const check = () => {
+			if (stopCalled) return false
 			let t = this.lexer.peek()
 			const bp = this.bp(t)
 			return rbpsOrTypes.reduce((canContinue, rbpOrType) => {
@@ -172,10 +181,10 @@ export class Parser<T> {
 		if (rbpsOrTypes.length == 0)
 			rbpsOrTypes.push(0)
 
-		let left = this.nud(this.lexer.next())
+		let left = this.nud(this.lexer.next(), stop)
 		while (check()) {
 			const operator = this.lexer.next()
-			left = this.led(left, operator)
+			left = this.led(left, operator, stop)
 		}
 		return left
 	}
@@ -232,7 +241,7 @@ export class ParserBuilder<T> {
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
 	either(tokenType: T, bp: number, fn: LedFunction<T>): ParserBuilder<T> {
-		return this.nud(tokenType, bp, (t, bp) => fn(null, t, bp))
+		return this.nud(tokenType, bp, (t, bp, stop) => fn(null, t, bp, stop))
 			.led(tokenType, bp, fn)
 	}
 

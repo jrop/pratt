@@ -4,6 +4,7 @@ import {Parser} from '../src/index'
 
 const lex = new Lexer<string>()
 	.token('NUM', /\d+/)
+	.token(';', /;/)
 	.token('+', /\+/)
 	.token('-', /-/)
 	.token('*', /\*/)
@@ -16,6 +17,7 @@ const lex = new Lexer<string>()
 const parser: Parser<string> = new Parser<string>(lex)
 	.builder()
 	.bp('EOF', -1)
+	.either(';', 1, (left, t, bp, stop) => stop(left))
 	.nud('NUM', 100, t => parseInt(t.match))
 	.nud('(', 10, (t, bp) => {
 		const expr = parser.parse(bp)
@@ -50,6 +52,12 @@ test('2*-3', () =>
 	assert.equal(evaluate('2*-3'), -6))
 test('-2*3', () =>
 	assert.equal(evaluate('-2*3'), -6))
+test(';1+2;3+4', () => {
+	lex.source = ';1+2;3+4'
+	assert.equal(parser.parse(), undefined)
+	assert.equal(parser.parse(), 3)
+	assert.equal(parser.parse(), 7)
+})
 
 test('1+ +', () =>
 	assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/))
