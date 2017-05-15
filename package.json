@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "doc": "tsc --module es2015 --target es2017 && esdoc",
-    "prepublish": "npm test",
+    "prepublish": "tsc && npm test",
     "test": "jest --coverage --verbose",
     "test:watch": "jest --watch"
   },
