@@ -1,5 +1,7 @@
 # pratt
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/jrop/pratt.svg)](https://greenkeeper.io/)
+
 A Pratt parser builder.
 
 Pratt parsers are top-down operator precedence (TDOP) parsers, and they are awesome.  They operate off of a few simple principles, and make expression parsing simple.
