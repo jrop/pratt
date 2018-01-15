@@ -348,30 +348,6 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/index.js~ilexer",
-    "typedef/index.html#static-typedef-ILexer",
-    "lib/index.js~ILexer",
-    "typedef"
-  ],
-  [
-    "lib/index.js~itoken",
-    "typedef/index.html#static-typedef-IToken",
-    "lib/index.js~IToken",
-    "typedef"
-  ],
-  [
-    "lib/index.js~ledfunction",
-    "typedef/index.html#static-typedef-LedFunction",
-    "lib/index.js~LedFunction",
-    "typedef"
-  ],
-  [
-    "lib/index.js~nudfunction",
-    "typedef/index.html#static-typedef-NudFunction",
-    "lib/index.js~NudFunction",
-    "typedef"
-  ],
-  [
     "lib/index.js~parser#bp",
     "class/lib/index.js~Parser.html#instance-method-bp",
     "lib/index.js~Parser#bp",

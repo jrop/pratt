@@ -3,7 +3,7 @@
     "__docId__": 0,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "/**\n * @typedef {function(token: IToken, bp: number): any} NudFunction\n */\n/**\n * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction\n */\n/**\n * @typedef {{type: string, match: string, isEof: () => boolean}} IToken\n */\n/**\n * @typedef {{\n *   next: () => IToken<T>,\n *   peek: () => IToken<T>\n * }} ILexer\n */\n/**\n * A Pratt parser.\n * @example\n * const lex = new perplex.Lexer('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer<T>} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        /**\n         * The lexer that this parser is operating on.\n         * @type {ILexer<T>}\n         */\n        this.lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return tokenOrType && typeof tokenOrType.isEof == 'function' ?\n            tokenOrType.type :\n            tokenOrType;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder<T>} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken<T>|T} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        if (tokenOrType == null)\n            return Number.NEGATIVE_INFINITY;\n        if (tokenOrType && typeof tokenOrType.isEof == 'function' && tokenOrType.isEof())\n            return Number.NEGATIVE_INFINITY;\n        const type = this._type(tokenOrType);\n        return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {IToken<T>} token The token to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(token) {\n        let fn = this._nuds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(token, this.bp(token));\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {any} left The left value\n     * @param {Token<T>} token The token to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(left, token) {\n        const bp = this.bp(token);\n        let fn = this._leds.get(token.type);\n        if (!fn)\n            fn = () => {\n                const { start } = token.strpos();\n                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);\n            };\n        return fn(left, token, bp);\n    }\n    /**\n     * Kicks off the Pratt parser, and returns the result\n     * @param {number[]|T[]} rbpsOrTypes The right-binding-powers/token-types at which to stop\n     * @returns {any}\n     */\n    parse(...rbpsOrTypes) {\n        const check = () => {\n            let t = this.lexer.peek();\n            const bp = this.bp(t);\n            return rbpsOrTypes.reduce((canContinue, rbpOrType) => {\n                if (!canContinue)\n                    return false;\n                if (typeof rbpOrType == 'number')\n                    return rbpOrType < bp;\n                if (typeof rbpOrType == 'string')\n                    return t.type != rbpOrType;\n            }, true);\n        };\n        if (rbpsOrTypes.length == 0)\n            rbpsOrTypes.push(0);\n        let left = this.nud(this.lexer.next());\n        while (check()) {\n            const operator = this.lexer.next();\n            left = this.led(left, operator);\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser<T>} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define both `led` and `nud` for a token type at once.\n     * The supplied `LedFunction` may be called with a null `left`\n     * parameter when invoked from a `nud` context.\n     * @param {strTng} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    either(tokenType, bp, fn) {\n        return this.nud(tokenType, bp, (t, bp) => fn(null, t, bp))\n            .led(tokenType, bp, fn);\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser<T>}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
+    "content": "const createStop = () => {\n    let stopCalled = false;\n    return Object.assign((x) => {\n        stopCalled = true;\n        return x;\n    }, {\n        isStopped() {\n            return stopCalled;\n        },\n    });\n};\n/**\n * A Pratt parser.\n * @example\n * const lex = new perplex.Lexer('1 + -2 * 3^4')\n *   .token('NUM', /\\d+/)\n *   .token('+', /\\+/)\n *   .token('-', /-/)\n *   .token('*', new RegExp('*'))\n *   .token('/', /\\//)\n *   .token('^', /\\^/)\n *   .token('(', /\\(/)\n *   .token(')', /\\)/)\n *   .token('$SKIP_WS', /\\s+/)\n *\n * const parser = new Parser(lex)\n *   .builder()\n *   .nud('NUM', 100, t => parseInt(t.match))\n *   .nud('-', 10, (t, bp) => -parser.parse(bp))\n *   .nud('(', 10, (t, bp) => {\n *     const expr = parser.parse(bp)\n *     lex.expect(')')\n *     return expr\n *   })\n *   .bp(')', 0)\n *\n *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(20 - 1)))\n *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n *   .build()\n * parser.parse()\n * // => 161\n */\nexport class Parser {\n    /**\n     * Constructs a Parser instance\n     * @param {ILexer<T>} lexer The lexer to obtain tokens from\n     */\n    constructor(lexer) {\n        /**\n         * The lexer that this parser is operating on.\n         * @type {ILexer<T>}\n         */\n        this.lexer = lexer;\n        this._nuds = new Map();\n        this._leds = new Map();\n        this._bps = new Map();\n    }\n    _type(tokenOrType) {\n        return tokenOrType && typeof tokenOrType.isEof == 'function'\n            ? tokenOrType.type\n            : tokenOrType;\n    }\n    /**\n     * Create a {@link ParserBuilder}\n     * @return {ParserBuilder<T>} Returns the ParserBuilder\n     */\n    builder() {\n        return new ParserBuilder(this);\n    }\n    /**\n     * Define binding power for a token-type\n     * @param {IToken<T>|T} tokenOrType The token type to define the binding power for\n     * @returns {number} The binding power of the specified token type\n     */\n    bp(tokenOrType) {\n        if (tokenOrType == null)\n            return Number.NEGATIVE_INFINITY;\n        if (tokenOrType &&\n            typeof tokenOrType.isEof == 'function' &&\n            tokenOrType.isEof())\n            return Number.NEGATIVE_INFINITY;\n        const type = this._type(tokenOrType);\n        return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;\n    }\n    /**\n     * Computes the token's `nud` value and returns it\n     * @param {NudInfo<T>} info The info to compute the `nud` from\n     * @returns {any} The result of invoking the pertinent `nud` operator\n     */\n    nud(info) {\n        const bp = this.bp(info.token);\n        let fn = this._nuds.get(info.token.type);\n        if (!fn) {\n            const { start } = info.token.strpos();\n            throw new Error(`Unexpected token: ${info.token.match} (at ${start.line}:${start.column})`);\n        }\n        return fn(info);\n    }\n    /**\n     * Computes a token's `led` value and returns it\n     * @param {LedInfo<T>} info The info to compute the `led` value for\n     * @returns {any} The result of invoking the pertinent `led` operator\n     */\n    led(info) {\n        const bp = this.bp(info.token);\n        let fn = this._leds.get(info.token.type);\n        if (!fn) {\n            const { start } = info.token.strpos();\n            throw new Error(`Unexpected token: ${info.token.match} (at ${start.line}:${start.column})`);\n        }\n        return fn(info);\n    }\n    /**\n     * Kicks off the Pratt parser, and returns the result\n     * @param {ParseOpts<T>} opts The parse options\n     * @returns {any}\n     */\n    parse(opts = { terminals: [0] }) {\n        const stop = createStop();\n        const check = () => {\n            if (stop.isStopped())\n                return false;\n            let t = this.lexer.peek();\n            const bp = this.bp(t);\n            return opts.terminals.reduce((canContinue, rbpOrType) => {\n                if (!canContinue)\n                    return false;\n                if (typeof rbpOrType == 'number')\n                    return rbpOrType < bp;\n                if (typeof rbpOrType == 'string')\n                    return t.type != rbpOrType;\n            }, true);\n        };\n        const mkinfo = (token) => {\n            const bp = this.bp(token);\n            return { token, bp, stop, ctx: opts.ctx };\n        };\n        if (!opts.terminals)\n            opts.terminals = [0];\n        if (opts.terminals.length == 0)\n            opts.terminals.push(0);\n        let left = this.nud(mkinfo(this.lexer.next()));\n        while (check()) {\n            const operator = this.lexer.next();\n            left = this.led(Object.assign(mkinfo(operator), { left }));\n        }\n        return left;\n    }\n}\n/**\n * Builds `led`/`nud` rules for a {@link Parser}\n */\nexport class ParserBuilder {\n    /**\n     * Constructs a ParserBuilder\n     * See also: {@link Parser.builder}\n     * @param {Parser<T>} parser The parser\n     */\n    constructor(parser) {\n        this._parser = parser;\n    }\n    /**\n     * Define `nud` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {NudFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    nud(tokenType, bp, fn) {\n        this._parser._nuds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define `led` for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    led(tokenType, bp, fn) {\n        this._parser._leds.set(tokenType, fn);\n        this.bp(tokenType, bp);\n        return this;\n    }\n    /**\n     * Define both `led` and `nud` for a token type at once.\n     * The supplied `LedFunction` may be called with a null `left`\n     * parameter when invoked from a `nud` context.\n     * @param {strTng} tokenType The token type\n     * @param {number} bp The binding power\n     * @param {LedFunction<T>} fn The function that will parse the token\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    either(tokenType, bp, fn) {\n        return this.nud(tokenType, bp, ({ token, bp, stop, ctx }) => fn({ left: null, token, bp, stop, ctx })).led(tokenType, bp, fn);\n    }\n    /**\n     * Define the binding power for a token type\n     * @param {T} tokenType The token type\n     * @param {number} bp The binding power\n     * @return {ParserBuilder<T>} Returns this ParserBuilder\n     */\n    bp(tokenType, bp) {\n        this._parser._bps.set(tokenType, bp);\n        return this;\n    }\n    /**\n     * Returns the parent {@link Parser} instance\n     * @returns {Parser<T>}\n     */\n    build() {\n        return this._parser;\n    }\n}\nexport default Parser;\n//# sourceMappingURL=index.js.map",
     "static": true,
     "longname": "lib/index.js",
     "access": null,
@@ -12,74 +12,35 @@
   },
   {
     "__docId__": 1,
-    "kind": "typedef",
-    "name": "NudFunction",
+    "kind": "function",
+    "name": "createStop",
     "memberof": "lib/index.js",
+    "generator": false,
+    "async": false,
     "static": true,
-    "longname": "lib/index.js~NudFunction",
+    "longname": "lib/index.js~createStop",
     "access": null,
-    "description": "",
-    "type": {
+    "export": false,
+    "importPath": "pratt",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 1,
+    "undocument": true,
+    "unknown": [
+      {
+        "tagName": "@_undocument",
+        "tagValue": ""
+      }
+    ],
+    "params": [],
+    "return": {
       "types": [
-        "function(token: IToken, bp: number): any"
-      ],
-      "optional": false,
-      "name": "NudFunction"
+        "*"
+      ]
     }
   },
   {
     "__docId__": 2,
-    "kind": "typedef",
-    "name": "LedFunction",
-    "memberof": "lib/index.js",
-    "static": true,
-    "longname": "lib/index.js~LedFunction",
-    "access": null,
-    "description": "",
-    "type": {
-      "types": [
-        "function(left: any, token: IToken, bp: number): any"
-      ],
-      "optional": false,
-      "name": "LedFunction"
-    }
-  },
-  {
-    "__docId__": 3,
-    "kind": "typedef",
-    "name": "IToken",
-    "memberof": "lib/index.js",
-    "static": true,
-    "longname": "lib/index.js~IToken",
-    "access": null,
-    "description": "",
-    "type": {
-      "types": [
-        "{type: string, match: string, isEof: () => boolean}"
-      ],
-      "optional": false,
-      "name": "IToken"
-    }
-  },
-  {
-    "__docId__": 4,
-    "kind": "typedef",
-    "name": "ILexer",
-    "memberof": "lib/index.js",
-    "static": true,
-    "longname": "lib/index.js~ILexer",
-    "access": null,
-    "description": "",
-    "type": {
-      "types": [
-        "{\n  next: () => IToken<T>,\n  peek: () => IToken<T>\n}"
-      ],
-      "optional": false,
-      "name": "ILexer"
-    }
-  },
-  {
-    "__docId__": 5,
     "kind": "class",
     "name": "Parser",
     "memberof": "lib/index.js",
@@ -91,13 +52,13 @@
     "importStyle": "{Parser}",
     "description": "A Pratt parser.",
     "examples": [
-      "const lex = new perplex.Lexer('1 + -2 * 3^4')\n  .token('NUM', /\\d+/)\n  .token('+', /\\+/)\n  .token('-', /-/)\n  .token('*', new RegExp('*'))\n  .token('/', /\\//)\n  .token('^', /\\^/)\n  .token('(', /\\(/)\n  .token(')', /\\)/)\n  .token('$SKIP_WS', /\\s+/)\n\nconst parser = new Parser(lex)\n  .builder()\n  .nud('NUM', 100, t => parseInt(t.match))\n  .nud('-', 10, (t, bp) => -parser.parse(bp))\n  .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp)\n    lex.expect(')')\n    return expr\n  })\n  .bp(')', 0)\n\n  .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n  .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n  .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n  .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n  .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n  .build()\nparser.parse()\n// => 161"
+      "const lex = new perplex.Lexer('1 + -2 * 3^4')\n  .token('NUM', /\\d+/)\n  .token('+', /\\+/)\n  .token('-', /-/)\n  .token('*', new RegExp('*'))\n  .token('/', /\\//)\n  .token('^', /\\^/)\n  .token('(', /\\(/)\n  .token(')', /\\)/)\n  .token('$SKIP_WS', /\\s+/)\n\nconst parser = new Parser(lex)\n  .builder()\n  .nud('NUM', 100, t => parseInt(t.match))\n  .nud('-', 10, (t, bp) => -parser.parse(bp))\n  .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp)\n    lex.expect(')')\n    return expr\n  })\n  .bp(')', 0)\n\n  .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(20 - 1)))\n  .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n  .led('-', 30, (left, t, bp) => left - parser.parse(bp))\n  .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n  .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n  .build()\nparser.parse()\n// => 161"
     ],
-    "lineNumber": 50,
+    "lineNumber": 46,
     "interface": false
   },
   {
-    "__docId__": 6,
+    "__docId__": 3,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/index.js~Parser",
@@ -107,7 +68,7 @@
     "longname": "lib/index.js~Parser#constructor",
     "access": null,
     "description": "Constructs a Parser instance",
-    "lineNumber": 55,
+    "lineNumber": 51,
     "params": [
       {
         "nullable": null,
@@ -122,7 +83,7 @@
     ]
   },
   {
-    "__docId__": 7,
+    "__docId__": 4,
     "kind": "member",
     "name": "lexer",
     "memberof": "lib/index.js~Parser",
@@ -130,7 +91,7 @@
     "longname": "lib/index.js~Parser#lexer",
     "access": null,
     "description": "The lexer that this parser is operating on.",
-    "lineNumber": 60,
+    "lineNumber": 56,
     "type": {
       "nullable": null,
       "types": [
@@ -141,7 +102,7 @@
     }
   },
   {
-    "__docId__": 8,
+    "__docId__": 5,
     "kind": "member",
     "name": "_nuds",
     "memberof": "lib/index.js~Parser",
@@ -149,7 +110,7 @@
     "longname": "lib/index.js~Parser#_nuds",
     "access": null,
     "description": null,
-    "lineNumber": 61,
+    "lineNumber": 57,
     "undocument": true,
     "unknown": [
       {
@@ -164,7 +125,7 @@
     }
   },
   {
-    "__docId__": 9,
+    "__docId__": 6,
     "kind": "member",
     "name": "_leds",
     "memberof": "lib/index.js~Parser",
@@ -172,7 +133,7 @@
     "longname": "lib/index.js~Parser#_leds",
     "access": null,
     "description": null,
-    "lineNumber": 62,
+    "lineNumber": 58,
     "undocument": true,
     "unknown": [
       {
@@ -187,7 +148,7 @@
     }
   },
   {
-    "__docId__": 10,
+    "__docId__": 7,
     "kind": "member",
     "name": "_bps",
     "memberof": "lib/index.js~Parser",
@@ -195,7 +156,7 @@
     "longname": "lib/index.js~Parser#_bps",
     "access": null,
     "description": null,
-    "lineNumber": 63,
+    "lineNumber": 59,
     "undocument": true,
     "unknown": [
       {
@@ -210,7 +171,7 @@
     }
   },
   {
-    "__docId__": 11,
+    "__docId__": 8,
     "kind": "method",
     "name": "_type",
     "memberof": "lib/index.js~Parser",
@@ -220,7 +181,7 @@
     "longname": "lib/index.js~Parser#_type",
     "access": null,
     "description": null,
-    "lineNumber": 65,
+    "lineNumber": 61,
     "undocument": true,
     "unknown": [
       {
@@ -243,7 +204,7 @@
     }
   },
   {
-    "__docId__": 12,
+    "__docId__": 9,
     "kind": "method",
     "name": "builder",
     "memberof": "lib/index.js~Parser",
@@ -253,7 +214,7 @@
     "longname": "lib/index.js~Parser#builder",
     "access": null,
     "description": "Create a {@link ParserBuilder}",
-    "lineNumber": 74,
+    "lineNumber": 70,
     "params": [],
     "return": {
       "nullable": null,
@@ -265,7 +226,7 @@
     }
   },
   {
-    "__docId__": 13,
+    "__docId__": 10,
     "kind": "method",
     "name": "bp",
     "memberof": "lib/index.js~Parser",
@@ -275,7 +236,7 @@
     "longname": "lib/index.js~Parser#bp",
     "access": null,
     "description": "Define binding power for a token-type",
-    "lineNumber": 82,
+    "lineNumber": 78,
     "unknown": [
       {
         "tagName": "@returns",
@@ -305,7 +266,7 @@
     }
   },
   {
-    "__docId__": 14,
+    "__docId__": 11,
     "kind": "method",
     "name": "nud",
     "memberof": "lib/index.js~Parser",
@@ -315,7 +276,7 @@
     "longname": "lib/index.js~Parser#nud",
     "access": null,
     "description": "Computes the token's `nud` value and returns it",
-    "lineNumber": 95,
+    "lineNumber": 93,
     "unknown": [
       {
         "tagName": "@returns",
@@ -326,12 +287,12 @@
       {
         "nullable": null,
         "types": [
-          "IToken<T>"
+          "NudInfo<T>"
         ],
         "spread": false,
         "optional": false,
-        "name": "token",
-        "description": "The token to compute the `nud` from"
+        "name": "info",
+        "description": "The info to compute the `nud` from"
       }
     ],
     "return": {
@@ -344,7 +305,7 @@
     }
   },
   {
-    "__docId__": 15,
+    "__docId__": 12,
     "kind": "method",
     "name": "led",
     "memberof": "lib/index.js~Parser",
@@ -354,7 +315,7 @@
     "longname": "lib/index.js~Parser#led",
     "access": null,
     "description": "Computes a token's `led` value and returns it",
-    "lineNumber": 110,
+    "lineNumber": 107,
     "unknown": [
       {
         "tagName": "@returns",
@@ -365,22 +326,12 @@
       {
         "nullable": null,
         "types": [
-          "any"
+          "LedInfo<T>"
         ],
         "spread": false,
         "optional": false,
-        "name": "left",
-        "description": "The left value"
-      },
-      {
-        "nullable": null,
-        "types": [
-          "Token<T>"
-        ],
-        "spread": false,
-        "optional": false,
-        "name": "token",
-        "description": "The token to compute the `led` value for"
+        "name": "info",
+        "description": "The info to compute the `led` value for"
       }
     ],
     "return": {
@@ -393,7 +344,7 @@
     }
   },
   {
-    "__docId__": 16,
+    "__docId__": 13,
     "kind": "method",
     "name": "parse",
     "memberof": "lib/index.js~Parser",
@@ -403,7 +354,7 @@
     "longname": "lib/index.js~Parser#parse",
     "access": null,
     "description": "Kicks off the Pratt parser, and returns the result",
-    "lineNumber": 125,
+    "lineNumber": 121,
     "unknown": [
       {
         "tagName": "@returns",
@@ -414,13 +365,12 @@
       {
         "nullable": null,
         "types": [
-          "number[]",
-          "T[]"
+          "ParseOpts<T>"
         ],
         "spread": false,
         "optional": false,
-        "name": "rbpsOrTypes",
-        "description": "The right-binding-powers/token-types at which to stop"
+        "name": "opts",
+        "description": "The parse options"
       }
     ],
     "return": {
@@ -433,7 +383,7 @@
     }
   },
   {
-    "__docId__": 17,
+    "__docId__": 14,
     "kind": "class",
     "name": "ParserBuilder",
     "memberof": "lib/index.js",
@@ -444,11 +394,11 @@
     "importPath": "pratt",
     "importStyle": "{ParserBuilder}",
     "description": "Builds `led`/`nud` rules for a {@link Parser}",
-    "lineNumber": 151,
+    "lineNumber": 156,
     "interface": false
   },
   {
-    "__docId__": 18,
+    "__docId__": 15,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/index.js~ParserBuilder",
@@ -458,7 +408,7 @@
     "longname": "lib/index.js~ParserBuilder#constructor",
     "access": null,
     "description": "Constructs a ParserBuilder\nSee also: {@link Parser.builder}",
-    "lineNumber": 157,
+    "lineNumber": 162,
     "params": [
       {
         "nullable": null,
@@ -473,7 +423,7 @@
     ]
   },
   {
-    "__docId__": 19,
+    "__docId__": 16,
     "kind": "member",
     "name": "_parser",
     "memberof": "lib/index.js~ParserBuilder",
@@ -481,7 +431,7 @@
     "longname": "lib/index.js~ParserBuilder#_parser",
     "access": null,
     "description": null,
-    "lineNumber": 158,
+    "lineNumber": 163,
     "undocument": true,
     "unknown": [
       {
@@ -496,7 +446,7 @@
     }
   },
   {
-    "__docId__": 20,
+    "__docId__": 17,
     "kind": "method",
     "name": "nud",
     "memberof": "lib/index.js~ParserBuilder",
@@ -506,7 +456,7 @@
     "longname": "lib/index.js~ParserBuilder#nud",
     "access": null,
     "description": "Define `nud` for a token type",
-    "lineNumber": 167,
+    "lineNumber": 172,
     "params": [
       {
         "nullable": null,
@@ -549,7 +499,7 @@
     }
   },
   {
-    "__docId__": 21,
+    "__docId__": 18,
     "kind": "method",
     "name": "led",
     "memberof": "lib/index.js~ParserBuilder",
@@ -559,7 +509,7 @@
     "longname": "lib/index.js~ParserBuilder#led",
     "access": null,
     "description": "Define `led` for a token type",
-    "lineNumber": 179,
+    "lineNumber": 184,
     "params": [
       {
         "nullable": null,
@@ -602,7 +552,7 @@
     }
   },
   {
-    "__docId__": 22,
+    "__docId__": 19,
     "kind": "method",
     "name": "either",
     "memberof": "lib/index.js~ParserBuilder",
@@ -612,7 +562,7 @@
     "longname": "lib/index.js~ParserBuilder#either",
     "access": null,
     "description": "Define both `led` and `nud` for a token type at once.\nThe supplied `LedFunction` may be called with a null `left`\nparameter when invoked from a `nud` context.",
-    "lineNumber": 193,
+    "lineNumber": 198,
     "params": [
       {
         "nullable": null,
@@ -655,7 +605,7 @@
     }
   },
   {
-    "__docId__": 23,
+    "__docId__": 20,
     "kind": "method",
     "name": "bp",
     "memberof": "lib/index.js~ParserBuilder",
@@ -665,7 +615,7 @@
     "longname": "lib/index.js~ParserBuilder#bp",
     "access": null,
     "description": "Define the binding power for a token type",
-    "lineNumber": 203,
+    "lineNumber": 207,
     "params": [
       {
         "nullable": null,
@@ -698,7 +648,7 @@
     }
   },
   {
-    "__docId__": 24,
+    "__docId__": 21,
     "kind": "method",
     "name": "build",
     "memberof": "lib/index.js~ParserBuilder",
@@ -708,7 +658,7 @@
     "longname": "lib/index.js~ParserBuilder#build",
     "access": null,
     "description": "Returns the parent {@link Parser} instance",
-    "lineNumber": 211,
+    "lineNumber": 215,
     "unknown": [
       {
         "tagName": "@returns",
@@ -726,7 +676,7 @@
     }
   },
   {
-    "__docId__": 25,
+    "__docId__": 22,
     "kind": "file",
     "name": "lib/test.js",
     "content": "import * as assert from 'assert';\nimport Lexer from 'perplex';\nimport { Parser } from './index';\nconst lex = new Lexer('')\n    .token('NUM', /\\d+/)\n    .token('+', /\\+/)\n    .token('-', /-/)\n    .token('*', /\\*/)\n    .token('/', /\\//)\n    .token('^', /\\^/)\n    .token('(', /\\(/)\n    .token(')', /\\)/)\n    .token('WS', /\\s+/, true);\nconst parser = new Parser(lex)\n    .builder()\n    .bp('EOF', -1)\n    .nud('NUM', 100, t => parseInt(t.match))\n    .nud('(', 10, (t, bp) => {\n    const expr = parser.parse(bp);\n    lex.expect(')');\n    return expr;\n})\n    .bp(')', 0)\n    .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(bp - 1)))\n    .led('+', 30, (left, t, bp) => left + parser.parse(bp))\n    .either('-', 30, (left, t, bp) => (left || 0) - parser.parse(bp))\n    .led('*', 40, (left, t, bp) => left * parser.parse(bp))\n    .led('/', 40, (left, t, bp) => left / parser.parse(bp))\n    .build();\nfunction evaluate(s) {\n    lex.source = s;\n    return parser.parse();\n}\nassert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25);\nassert.equal(evaluate('1^2^3'), 1);\nassert.equal(evaluate('(1/2)^-1'), 2);\nassert.equal(evaluate('4^3^2^1'), Math.pow(4, 9));\nassert.equal(evaluate('-1-3'), -4);\nassert.equal(evaluate('2*-3'), -6);\nassert.equal(evaluate('-2*3'), -6);\nassert.throws(() => evaluate('1+ +'), /Unexpected token: \\+ \\(at 1:4\\)/);\nconsole.log('All tests passed');\n//# sourceMappingURL=test.js.map",
@@ -737,7 +687,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 26,
+    "__docId__": 23,
     "kind": "variable",
     "name": "lex",
     "memberof": "lib/test.js",
@@ -763,7 +713,7 @@
     }
   },
   {
-    "__docId__": 27,
+    "__docId__": 24,
     "kind": "variable",
     "name": "parser",
     "memberof": "lib/test.js",
@@ -789,7 +739,7 @@
     }
   },
   {
-    "__docId__": 28,
+    "__docId__": 25,
     "kind": "function",
     "name": "evaluate",
     "memberof": "lib/test.js",
@@ -825,7 +775,7 @@
     }
   },
   {
-    "__docId__": 30,
+    "__docId__": 27,
     "kind": "external",
     "name": "Infinity",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Infinity",
@@ -837,7 +787,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 31,
+    "__docId__": 28,
     "kind": "external",
     "name": "NaN",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN",
@@ -849,7 +799,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 32,
+    "__docId__": 29,
     "kind": "external",
     "name": "undefined",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined",
@@ -861,7 +811,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 33,
+    "__docId__": 30,
     "kind": "external",
     "name": "null",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/null",
@@ -873,7 +823,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 34,
+    "__docId__": 31,
     "kind": "external",
     "name": "Object",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
@@ -885,7 +835,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 35,
+    "__docId__": 32,
     "kind": "external",
     "name": "object",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
@@ -897,7 +847,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 36,
+    "__docId__": 33,
     "kind": "external",
     "name": "Function",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
@@ -909,7 +859,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 37,
+    "__docId__": 34,
     "kind": "external",
     "name": "function",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
@@ -921,7 +871,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 38,
+    "__docId__": 35,
     "kind": "external",
     "name": "Boolean",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
@@ -933,7 +883,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 39,
+    "__docId__": 36,
     "kind": "external",
     "name": "boolean",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
@@ -945,7 +895,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 40,
+    "__docId__": 37,
     "kind": "external",
     "name": "Symbol",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol",
@@ -957,7 +907,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 41,
+    "__docId__": 38,
     "kind": "external",
     "name": "Error",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error",
@@ -969,7 +919,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 42,
+    "__docId__": 39,
     "kind": "external",
     "name": "EvalError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError",
@@ -981,7 +931,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 43,
+    "__docId__": 40,
     "kind": "external",
     "name": "InternalError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/InternalError",
@@ -993,7 +943,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 44,
+    "__docId__": 41,
     "kind": "external",
     "name": "RangeError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError",
@@ -1005,7 +955,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 45,
+    "__docId__": 42,
     "kind": "external",
     "name": "ReferenceError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError",
@@ -1017,7 +967,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 46,
+    "__docId__": 43,
     "kind": "external",
     "name": "SyntaxError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError",
@@ -1029,7 +979,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 47,
+    "__docId__": 44,
     "kind": "external",
     "name": "TypeError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError",
@@ -1041,7 +991,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 48,
+    "__docId__": 45,
     "kind": "external",
     "name": "URIError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError",
@@ -1053,7 +1003,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 49,
+    "__docId__": 46,
     "kind": "external",
     "name": "Number",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
@@ -1065,7 +1015,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 50,
+    "__docId__": 47,
     "kind": "external",
     "name": "number",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
@@ -1077,7 +1027,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 51,
+    "__docId__": 48,
     "kind": "external",
     "name": "Date",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date",
@@ -1089,7 +1039,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 52,
+    "__docId__": 49,
     "kind": "external",
     "name": "String",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
@@ -1101,7 +1051,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 53,
+    "__docId__": 50,
     "kind": "external",
     "name": "string",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
@@ -1113,7 +1063,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 54,
+    "__docId__": 51,
     "kind": "external",
     "name": "RegExp",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp",
@@ -1125,7 +1075,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 55,
+    "__docId__": 52,
     "kind": "external",
     "name": "Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
@@ -1137,7 +1087,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 56,
+    "__docId__": 53,
     "kind": "external",
     "name": "Int8Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array",
@@ -1149,7 +1099,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 57,
+    "__docId__": 54,
     "kind": "external",
     "name": "Uint8Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array",
@@ -1161,7 +1111,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 58,
+    "__docId__": 55,
     "kind": "external",
     "name": "Uint8ClampedArray",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray",
@@ -1173,7 +1123,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 59,
+    "__docId__": 56,
     "kind": "external",
     "name": "Int16Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array",
@@ -1185,7 +1135,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 60,
+    "__docId__": 57,
     "kind": "external",
     "name": "Uint16Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array",
@@ -1197,7 +1147,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 61,
+    "__docId__": 58,
     "kind": "external",
     "name": "Int32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array",
@@ -1209,7 +1159,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 62,
+    "__docId__": 59,
     "kind": "external",
     "name": "Uint32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array",
@@ -1221,7 +1171,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 63,
+    "__docId__": 60,
     "kind": "external",
     "name": "Float32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array",
@@ -1233,7 +1183,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 64,
+    "__docId__": 61,
     "kind": "external",
     "name": "Float64Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array",
@@ -1245,7 +1195,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 65,
+    "__docId__": 62,
     "kind": "external",
     "name": "Map",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map",
@@ -1257,7 +1207,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 66,
+    "__docId__": 63,
     "kind": "external",
     "name": "Set",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set",
@@ -1269,7 +1219,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 67,
+    "__docId__": 64,
     "kind": "external",
     "name": "WeakMap",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap",
@@ -1281,7 +1231,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 68,
+    "__docId__": 65,
     "kind": "external",
     "name": "WeakSet",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet",
@@ -1293,7 +1243,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 69,
+    "__docId__": 66,
     "kind": "external",
     "name": "ArrayBuffer",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer",
@@ -1305,7 +1255,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 70,
+    "__docId__": 67,
     "kind": "external",
     "name": "DataView",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView",
@@ -1317,7 +1267,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 71,
+    "__docId__": 68,
     "kind": "external",
     "name": "JSON",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON",
@@ -1329,7 +1279,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 72,
+    "__docId__": 69,
     "kind": "external",
     "name": "Promise",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
@@ -1341,7 +1291,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 73,
+    "__docId__": 70,
     "kind": "external",
     "name": "Generator",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
@@ -1353,7 +1303,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 74,
+    "__docId__": 71,
     "kind": "external",
     "name": "GeneratorFunction",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/GeneratorFunction",
@@ -1365,7 +1315,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 75,
+    "__docId__": 72,
     "kind": "external",
     "name": "Reflect",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect",
@@ -1377,7 +1327,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 76,
+    "__docId__": 73,
     "kind": "external",
     "name": "Proxy",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy",
@@ -1390,7 +1340,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 78,
+    "__docId__": 75,
     "kind": "external",
     "name": "CanvasRenderingContext2D",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D",
@@ -1402,7 +1352,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 79,
+    "__docId__": 76,
     "kind": "external",
     "name": "DocumentFragment",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment",
@@ -1414,7 +1364,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 80,
+    "__docId__": 77,
     "kind": "external",
     "name": "Element",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Element",
@@ -1426,7 +1376,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 81,
+    "__docId__": 78,
     "kind": "external",
     "name": "Event",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Event",
@@ -1438,7 +1388,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 82,
+    "__docId__": 79,
     "kind": "external",
     "name": "Node",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Node",
@@ -1450,7 +1400,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 83,
+    "__docId__": 80,
     "kind": "external",
     "name": "NodeList",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/NodeList",
@@ -1462,7 +1412,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 84,
+    "__docId__": 81,
     "kind": "external",
     "name": "XMLHttpRequest",
     "externalLink": "https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest",
@@ -1474,7 +1424,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 85,
+    "__docId__": 82,
     "kind": "external",
     "name": "AudioContext",
     "externalLink": "https://developer.mozilla.org/en/docs/Web/API/AudioContext",

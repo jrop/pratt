@@ -34,30 +34,22 @@
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~Parser.html">Parser</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/index.js~ParserBuilder.html">ParserBuilder</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-ILexer">ILexer</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-IToken">IToken</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-LedFunction">LedFunction</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-typedef">T</span><span data-ice="name"><span><a href="typedef/index.html#static-typedef-NudFunction">NudFunction</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/index.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
- * @typedef {function(token: IToken, bp: number): any} NudFunction
- */
-/**
- * @typedef {function(left: any, token: IToken, bp: number): any} LedFunction
- */
-/**
- * @typedef {{type: string, match: string, isEof: () =&gt; boolean}} IToken
- */
-/**
- * @typedef {{
- *   next: () =&gt; IToken&lt;T&gt;,
- *   peek: () =&gt; IToken&lt;T&gt;
- * }} ILexer
- */
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">const createStop = () =&gt; {
+    let stopCalled = false;
+    return Object.assign((x) =&gt; {
+        stopCalled = true;
+        return x;
+    }, {
+        isStopped() {
+            return stopCalled;
+        },
+    });
+};
 /**
  * A Pratt parser.
  * @example
@@ -83,7 +75,7 @@
  *   })
  *   .bp(&apos;)&apos;, 0)
  *
- *   .led(&apos;^&apos;, 20, (left, t, bp) =&gt; Math.pow(left, parser.parse(bp - 1)))
+ *   .led(&apos;^&apos;, 20, (left, t, bp) =&gt; Math.pow(left, parser.parse(20 - 1)))
  *   .led(&apos;+&apos;, 30, (left, t, bp) =&gt; left + parser.parse(bp))
  *   .led(&apos;-&apos;, 30, (left, t, bp) =&gt; left - parser.parse(bp))
  *   .led(&apos;*&apos;, 40, (left, t, bp) =&gt; left * parser.parse(bp))
@@ -108,9 +100,9 @@ export class Parser {
         this._bps = new Map();
     }
     _type(tokenOrType) {
-        return tokenOrType &amp;&amp; typeof tokenOrType.isEof == &apos;function&apos; ?
-            tokenOrType.type :
-            tokenOrType;
+        return tokenOrType &amp;&amp; typeof tokenOrType.isEof == &apos;function&apos;
+            ? tokenOrType.type
+            : tokenOrType;
     }
     /**
      * Create a {@link ParserBuilder}
@@ -127,51 +119,54 @@ export class Parser {
     bp(tokenOrType) {
         if (tokenOrType == null)
             return Number.NEGATIVE_INFINITY;
-        if (tokenOrType &amp;&amp; typeof tokenOrType.isEof == &apos;function&apos; &amp;&amp; tokenOrType.isEof())
+        if (tokenOrType &amp;&amp;
+            typeof tokenOrType.isEof == &apos;function&apos; &amp;&amp;
+            tokenOrType.isEof())
             return Number.NEGATIVE_INFINITY;
         const type = this._type(tokenOrType);
         return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY;
     }
     /**
      * Computes the token&apos;s `nud` value and returns it
-     * @param {IToken&lt;T&gt;} token The token to compute the `nud` from
+     * @param {NudInfo&lt;T&gt;} info The info to compute the `nud` from
      * @returns {any} The result of invoking the pertinent `nud` operator
      */
-    nud(token) {
-        let fn = this._nuds.get(token.type);
-        if (!fn)
-            fn = () =&gt; {
-                const { start } = token.strpos();
-                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);
-            };
-        return fn(token, this.bp(token));
+    nud(info) {
+        const bp = this.bp(info.token);
+        let fn = this._nuds.get(info.token.type);
+        if (!fn) {
+            const { start } = info.token.strpos();
+            throw new Error(`Unexpected token: ${info.token.match} (at ${start.line}:${start.column})`);
+        }
+        return fn(info);
     }
     /**
      * Computes a token&apos;s `led` value and returns it
-     * @param {any} left The left value
-     * @param {Token&lt;T&gt;} token The token to compute the `led` value for
+     * @param {LedInfo&lt;T&gt;} info The info to compute the `led` value for
      * @returns {any} The result of invoking the pertinent `led` operator
      */
-    led(left, token) {
-        const bp = this.bp(token);
-        let fn = this._leds.get(token.type);
-        if (!fn)
-            fn = () =&gt; {
-                const { start } = token.strpos();
-                throw new Error(`Unexpected token: ${token.match} (at ${start.line}:${start.column})`);
-            };
-        return fn(left, token, bp);
+    led(info) {
+        const bp = this.bp(info.token);
+        let fn = this._leds.get(info.token.type);
+        if (!fn) {
+            const { start } = info.token.strpos();
+            throw new Error(`Unexpected token: ${info.token.match} (at ${start.line}:${start.column})`);
+        }
+        return fn(info);
     }
     /**
      * Kicks off the Pratt parser, and returns the result
-     * @param {number[]|T[]} rbpsOrTypes The right-binding-powers/token-types at which to stop
+     * @param {ParseOpts&lt;T&gt;} opts The parse options
      * @returns {any}
      */
-    parse(...rbpsOrTypes) {
+    parse(opts = { terminals: [0] }) {
+        const stop = createStop();
         const check = () =&gt; {
+            if (stop.isStopped())
+                return false;
             let t = this.lexer.peek();
             const bp = this.bp(t);
-            return rbpsOrTypes.reduce((canContinue, rbpOrType) =&gt; {
+            return opts.terminals.reduce((canContinue, rbpOrType) =&gt; {
                 if (!canContinue)
                     return false;
                 if (typeof rbpOrType == &apos;number&apos;)
@@ -180,12 +175,18 @@ export class Parser {
                     return t.type != rbpOrType;
             }, true);
         };
-        if (rbpsOrTypes.length == 0)
-            rbpsOrTypes.push(0);
-        let left = this.nud(this.lexer.next());
+        const mkinfo = (token) =&gt; {
+            const bp = this.bp(token);
+            return { token, bp, stop, ctx: opts.ctx };
+        };
+        if (!opts.terminals)
+            opts.terminals = [0];
+        if (opts.terminals.length == 0)
+            opts.terminals.push(0);
+        let left = this.nud(mkinfo(this.lexer.next()));
         while (check()) {
             const operator = this.lexer.next();
-            left = this.led(left, operator);
+            left = this.led(Object.assign(mkinfo(operator), { left }));
         }
         return left;
     }
@@ -236,8 +237,7 @@ export class ParserBuilder {
      * @return {ParserBuilder&lt;T&gt;} Returns this ParserBuilder
      */
     either(tokenType, bp, fn) {
-        return this.nud(tokenType, bp, (t, bp) =&gt; fn(null, t, bp))
-            .led(tokenType, bp, fn);
+        return this.nud(tokenType, bp, ({ token, bp, stop, ctx }) =&gt; fn({ left: null, token, bp, stop, ctx })).led(tokenType, bp, fn);
     }
     /**
      * Define the binding power for a token type
