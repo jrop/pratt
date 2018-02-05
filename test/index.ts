@@ -1,4 +1,6 @@
 import * as assert from 'assert'
+import * as test from 'tape'
+
 import Lexer from 'perplex'
 import {Parser} from '../src/index'
 
@@ -44,20 +46,43 @@ function evaluate(s): number {
 	return parser.parse()
 }
 
-test('1 + 2 * (3 + 1) * 3', () =>
-	assert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25))
-test('1^2^3', () => assert.equal(evaluate('1^2^3'), 1))
-test('(1/2)^-1', () => assert.equal(evaluate('(1/2)^-1'), 2))
-test('4^3^2^1', () => assert.equal(evaluate('4^3^2^1'), Math.pow(4, 9)))
-test('-1-3', () => assert.equal(evaluate('-1-3'), -4))
-test('2*-3', () => assert.equal(evaluate('2*-3'), -6))
-test('-2*3', () => assert.equal(evaluate('-2*3'), -6))
-test(';1+2;3+4', () => {
+test('1 + 2 * (3 + 1) * 3', t => {
+	assert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25)
+	t.end()
+})
+test('1^2^3', t => {
+	assert.equal(evaluate('1^2^3'), 1)
+	t.end()
+})
+test('(1/2)^-1', t => {
+	assert.equal(evaluate('(1/2)^-1'), 2)
+	t.end()
+})
+test('4^3^2^1', t => {
+	assert.equal(evaluate('4^3^2^1'), Math.pow(4, 9))
+	t.end()
+})
+test('-1-3', t => {
+	assert.equal(evaluate('-1-3'), -4)
+	t.end()
+})
+test('2*-3', t => {
+	assert.equal(evaluate('2*-3'), -6)
+	t.end()
+})
+test('-2*3', t => {
+	assert.equal(evaluate('-2*3'), -6)
+	t.end()
+})
+test(';1+2;3+4', t => {
 	lex.source = ';1+2;3+4'
 	assert.equal(parser.parse(), undefined)
 	assert.equal(parser.parse(), 3)
 	assert.equal(parser.parse(), 7)
+	t.end()
 })
 
-test('1+ +', () =>
-	assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/))
+test('1+ +', t => {
+	assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
+	t.end()
+})
