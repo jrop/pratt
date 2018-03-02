@@ -23,7 +23,12 @@ export type NudInfo<T> = {
 	token: IToken<T>
 	bp: number
 	stop: StopFunction
+
+	// TODO: with the below addition of `options`
+	// the `ctx parameter is carried through anyway
+	// remove in a breaking API change release
 	ctx: any
+	options: ParseOpts<T>
 }
 export type LedInfo<T> = NudInfo<T> & {left: any}
 
@@ -193,7 +198,7 @@ export class Parser<T> {
 		}
 		const mkinfo = (token: IToken<T>): NudInfo<T> => {
 			const bp = this.bp(token)
-			return {token, bp, stop, ctx: opts.ctx}
+			return {token, bp, stop, ctx: opts.ctx, options: opts}
 		}
 		if (!opts.terminals) opts.terminals = [0]
 		if (opts.terminals.length == 0) opts.terminals.push(0)
@@ -258,8 +263,8 @@ export class ParserBuilder<T> {
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
 	either(tokenType: T, bp: number, fn: LedFunction<T>): ParserBuilder<T> {
-		return this.nud(tokenType, bp, ({token, bp, stop, ctx}) =>
-			fn({left: null, token, bp, stop, ctx})
+		return this.nud(tokenType, bp, inf =>
+			fn(Object.assign(inf, {left: null}))
 		).led(tokenType, bp, fn)
 	}
 
