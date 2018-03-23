@@ -47,42 +47,42 @@ function evaluate(s): number {
 }
 
 test('1 + 2 * (3 + 1) * 3', t => {
-	assert.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25)
+	t.equal(evaluate('1 + 2 * (3 + 1) * 3'), 25)
 	t.end()
 })
 test('1^2^3', t => {
-	assert.equal(evaluate('1^2^3'), 1)
+	t.equal(evaluate('1^2^3'), 1)
 	t.end()
 })
 test('(1/2)^-1', t => {
-	assert.equal(evaluate('(1/2)^-1'), 2)
+	t.equal(evaluate('(1/2)^-1'), 2)
 	t.end()
 })
 test('4^3^2^1', t => {
-	assert.equal(evaluate('4^3^2^1'), Math.pow(4, 9))
+	t.equal(evaluate('4^3^2^1'), Math.pow(4, 9))
 	t.end()
 })
 test('-1-3', t => {
-	assert.equal(evaluate('-1-3'), -4)
+	t.equal(evaluate('-1-3'), -4)
 	t.end()
 })
 test('2*-3', t => {
-	assert.equal(evaluate('2*-3'), -6)
+	t.equal(evaluate('2*-3'), -6)
 	t.end()
 })
 test('-2*3', t => {
-	assert.equal(evaluate('-2*3'), -6)
+	t.equal(evaluate('-2*3'), -6)
 	t.end()
 })
 test(';1+2;3+4', t => {
 	lex.source = ';1+2;3+4'
-	assert.equal(parser.parse(), undefined)
-	assert.equal(parser.parse(), 3)
-	assert.equal(parser.parse(), 7)
+	t.equal(parser.parse(), null)
+	t.equal(parser.parse(), 3)
+	t.equal(parser.parse(), 7)
 	t.end()
 })
 
 test('1+ +', t => {
-	assert.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
+	t.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
 	t.end()
 })

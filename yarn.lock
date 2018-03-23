@@ -2,10 +2,6 @@
 # yarn lockfile v1
 
 
-"@types/jest@^19.2.3":
-  version "19.2.3"
-  resolved "https://registry.yarnpkg.com/@types/jest/-/jest-19.2.3.tgz#61748040e8589a891dfc2ec1d16a2dd74482980e"
-
 "@types/node@^7.0.13":
   version "7.0.13"
   resolved "https://registry.npmjs.org/@types/node/-/node-7.0.13.tgz#1b0a53fe9ef9c3a5d061b126cc9b915bca43a3f5"

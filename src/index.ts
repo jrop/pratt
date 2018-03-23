@@ -38,7 +38,11 @@ export type LedFunction<T> = (inf: LedInfo<T>) => any
 export type NudMap<T> = Map<T, NudFunction<T>>
 export type LedMap<T> = Map<T, LedFunction<T>>
 
-export type ParseOpts<T> = {terminals?: (number | T)[]; ctx?: any}
+export type ParseOpts<T> = {
+	ctx?: any
+	stop?: StopFunction
+	terminals?: (number | T)[]
+}
 
 const createStop = <T>(): StopFunction => {
 	let stopCalled = false
@@ -185,7 +189,7 @@ export class Parser<T> {
 	 * @returns {any}
 	 */
 	parse(opts: ParseOpts<T> = {terminals: [0]}): any {
-		const stop = createStop()
+		const stop = opts.stop || createStop()
 		const check = () => {
 			if (stop.isStopped()) return false
 			let t = this.lexer.peek()

@@ -1,6 +1,6 @@
 {
   "name": "pratt",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
@@ -12,7 +12,6 @@
     "test": "tape -r ts-node/register test/index.ts | tap-spec"
   },
   "devDependencies": {
-    "@types/jest": "^19.2.3",
     "@types/node": "^7.0.13",
     "esdoc": "^0.5.2",
     "husky": "^0.14.3",
