@@ -17,6 +17,9 @@ export interface ILexer<T> {
 	peek(): IToken<T>
 }
 
+export type BPResolver = () => number
+export type BP = number | BPResolver
+
 export type StopFunction = (<T>(x: T) => T) & {isStopped(): boolean}
 
 export type NudInfo<T> = {
@@ -97,7 +100,7 @@ export class Parser<T> {
 	public lexer: ILexer<T>
 	_nuds: NudMap<T>
 	_leds: LedMap<T>
-	_bps: Map<T, number>
+	_bps: Map<T, BP>
 
 	/**
 	 * Constructs a Parser instance
@@ -142,7 +145,10 @@ export class Parser<T> {
 		)
 			return Number.NEGATIVE_INFINITY
 		const type = this._type(tokenOrType)
-		return this._bps.has(type) ? this._bps.get(type) : Number.POSITIVE_INFINITY
+		const bp = this._bps.has(type)
+			? this._bps.get(type)
+			: Number.POSITIVE_INFINITY
+		return typeof bp == 'function' ? bp() : bp
 	}
 
 	/**
@@ -151,7 +157,6 @@ export class Parser<T> {
 	 * @returns {any} The result of invoking the pertinent `nud` operator
 	 */
 	nud(info: NudInfo<T>) {
-		const bp = this.bp(info.token)
 		let fn: NudFunction<T> = this._nuds.get(info.token.type)
 		if (!fn) {
 			const {start} = info.token.strpos()
@@ -170,7 +175,6 @@ export class Parser<T> {
 	 * @returns {any} The result of invoking the pertinent `led` operator
 	 */
 	led(info: LedInfo<T>) {
-		const bp = this.bp(info.token)
 		let fn = this._leds.get(info.token.type)
 		if (!fn) {
 			const {start} = info.token.strpos()
@@ -238,7 +242,7 @@ export class ParserBuilder<T> {
 	 * @param {NudFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	nud(tokenType: T, bp: number, fn: NudFunction<T>): ParserBuilder<T> {
+	nud(tokenType: T, bp: BP, fn: NudFunction<T>): ParserBuilder<T> {
 		this._parser._nuds.set(tokenType, fn)
 		this.bp(tokenType, bp)
 		return this
@@ -251,7 +255,7 @@ export class ParserBuilder<T> {
 	 * @param {LedFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	led(tokenType: T, bp: number, fn: LedFunction<T>): ParserBuilder<T> {
+	led(tokenType: T, bp: BP, fn: LedFunction<T>): ParserBuilder<T> {
 		this._parser._leds.set(tokenType, fn)
 		this.bp(tokenType, bp)
 		return this
@@ -266,7 +270,7 @@ export class ParserBuilder<T> {
 	 * @param {LedFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	either(tokenType: T, bp: number, fn: LedFunction<T>): ParserBuilder<T> {
+	either(tokenType: T, bp: BP, fn: LedFunction<T>): ParserBuilder<T> {
 		return this.nud(tokenType, bp, inf =>
 			fn(Object.assign(inf, {left: null}))
 		).led(tokenType, bp, fn)
@@ -275,10 +279,10 @@ export class ParserBuilder<T> {
 	/**
 	 * Define the binding power for a token type
 	 * @param {T} tokenType The token type
-	 * @param {number} bp The binding power
+	 * @param {BP} bp The binding power
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	bp(tokenType: T, bp: number): ParserBuilder<T> {
+	bp(tokenType: T, bp: BP): ParserBuilder<T> {
 		this._parser._bps.set(tokenType, bp)
 		return this
 	}

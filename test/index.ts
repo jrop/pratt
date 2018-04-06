@@ -1,7 +1,8 @@
 import * as assert from 'assert'
 import * as test from 'tape'
+import * as sinon from 'sinon'
 
-import Lexer from 'perplex'
+import Lexer, {Token} from 'perplex'
 import {Parser} from '../src/index'
 
 const lex = new Lexer<string>()
@@ -81,8 +82,56 @@ test(';1+2;3+4', t => {
 	t.equal(parser.parse(), 7)
 	t.end()
 })
-
 test('1+ +', t => {
 	t.throws(() => evaluate('1+ +'), /Unexpected token: \+ \(at 1:4\)/)
+	t.end()
+})
+test('BPResolver', t => {
+	const bpResolver = sinon.spy(() => 100)
+	parser.builder().bp('NUM', bpResolver as () => number)
+
+	t.equal(evaluate('1'), 1)
+	t.assert(bpResolver.calledOnce)
+	t.deepLooseEqual(bpResolver.returnValues, [100])
+	t.end()
+})
+test('parser.bp(null) == -Infinity', t => {
+	t.equal(parser.bp(null), Number.NEGATIVE_INFINITY)
+	t.end()
+})
+test('parser.bp("DOES_NOT_EXIST") == +Infinity', t => {
+	t.equal(parser.bp('DOES_NOT_EXIST'), Number.POSITIVE_INFINITY)
+	t.end()
+})
+test('parser.led({token: {type: "UNEXPECTED"}}) throws', t => {
+	t.throws(
+		() =>
+			parser.led({
+				token: new Token<string>('UNEXPECTED', '...', [], 0, 0, lex),
+			} as any),
+		/unexpected/i
+	)
+	t.end()
+})
+test('parser.parse({terminals: [...]})', t => {
+	lex.source = '1'
+	t.equal(
+		parser.parse({terminals: null}),
+		1,
+		'auto-inits `terminals` (from null)'
+	)
+	lex.position = 0
+
+	lex.source = '1'
+	t.equal(
+		parser.parse({terminals: []}),
+		1,
+		'auto-inits `terminals` (from `[]`)'
+	)
+	lex.position = 0
+
+	lex.source = '1 2'
+	t.equal(parser.parse({terminals: ['NUM', 0]}), 1, 'terminates upon a NUM')
+	lex.position = 0
 	t.end()
 })
