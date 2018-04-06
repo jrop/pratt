@@ -189,7 +189,7 @@ export class Parser<T> {
 	 * @returns {any}
 	 */
 	parse(opts: ParseOpts<T> = {terminals: [0]}): any {
-		const stop = opts.stop || createStop()
+		const stop = (opts.stop = opts.stop || createStop())
 		const check = () => {
 			if (stop.isStopped()) return false
 			let t = this.lexer.peek()
