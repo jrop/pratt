@@ -17,7 +17,7 @@
     "esdoc": "^0.5.2",
     "husky": "^0.14.3",
     "nyc": "^11.6.0",
-    "perplex": "0.10.0",
+    "perplex": "^0.12.0-alpha.1",
     "prettier": "^1.10.2",
     "sinon": "^4.5.0",
     "tap-spec": "^4.1.1",

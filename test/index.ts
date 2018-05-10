@@ -5,18 +5,22 @@ import * as sinon from 'sinon'
 import Lexer, {Token} from 'perplex'
 import {Parser} from '../src/index'
 
-const lex = new Lexer<string>()
-	.token('NUM', /\d+/)
-	.token(';', /;/)
-	.token('+', /\+/)
-	.token('-', /-/)
-	.token('*', /\*/)
-	.token('/', /\//)
-	.token('^', /\^/)
-	.token('(', /\(/)
-	.token(')', /\)/)
-	.token('WS', /\s+/, true)
-
+const lex = new Lexer().build(lex => {
+	lex.tokenTypes
+		.define('NUM', /\d+/)
+		.defineOperator('[', '[')
+		.defineOperator(']', ']')
+		.defineOperator(';', ';')
+		.defineOperator(',', ',')
+		.defineOperator('+', '+')
+		.defineOperator('-', '-')
+		.defineOperator('*', '*')
+		.defineOperator('/', '/')
+		.defineOperator('^', '^')
+		.defineOperator('(', '(')
+		.defineOperator(')', ')')
+		.define('WS', /\s+/, true)
+})
 const parser: Parser<string> = new Parser<string>(lex)
 	.builder()
 	.bp('EOF', -1)
@@ -43,7 +47,7 @@ const parser: Parser<string> = new Parser<string>(lex)
 	.build()
 
 function evaluate(s): number {
-	lex.source = s
+	lex.state.source = s
 	return parser.parse()
 }
 
@@ -76,7 +80,7 @@ test('-2*3', t => {
 	t.end()
 })
 test(';1+2;3+4', t => {
-	lex.source = ';1+2;3+4'
+	lex.state.source = ';1+2;3+4'
 	t.equal(parser.parse(), null)
 	t.equal(parser.parse(), 3)
 	t.equal(parser.parse(), 7)
@@ -107,31 +111,71 @@ test('parser.led({token: {type: "UNEXPECTED"}}) throws', t => {
 	t.throws(
 		() =>
 			parser.led({
-				token: new Token<string>('UNEXPECTED', '...', [], 0, 0, lex),
+				token: new Token<string>({
+					type: 'UNEXPECTED',
+					match: '...',
+					groups: [],
+					start: 0,
+					end: 0,
+					lexer: lex,
+				}),
 			} as any),
 		/unexpected/i
 	)
 	t.end()
 })
 test('parser.parse({terminals: [...]})', t => {
-	lex.source = '1'
+	lex.state.source = '1'
 	t.equal(
 		parser.parse({terminals: null}),
 		1,
 		'auto-inits `terminals` (from null)'
 	)
-	lex.position = 0
+	lex.state.position = 0
 
-	lex.source = '1'
+	lex.state.source = '1'
 	t.equal(
 		parser.parse({terminals: []}),
 		1,
 		'auto-inits `terminals` (from `[]`)'
 	)
-	lex.position = 0
+	lex.state.position = 0
 
-	lex.source = '1 2'
+	lex.state.source = '1 2'
 	t.equal(parser.parse({terminals: ['NUM', 0]}), 1, 'terminates upon a NUM')
-	lex.position = 0
+	lex.state.position = 0
+	t.end()
+})
+
+test('Helpers', t => {
+	lex.state.source = '[1, 2] + -3 * 7'
+	const parser: Parser<string> = new Parser(lex)
+		.builder()
+		.nud('NUM', 5, inf => parseFloat(inf.token.match))
+		.nud('[', 5, inf => {
+			const items = parser.parseList({
+				consumeCloser: () => lex.expect(']'),
+				consumeSeparator: () => lex.expect(','),
+				isNextCloser: () => lex.peek().type == ']',
+				isNextSeparator: () => lex.peek().type == ',',
+				parseItem: () => parser.parse({terminals: [',', ']']}),
+			})
+			return items[items.length - 1]
+		})
+		
+		.binary('+', 20, (left, op, right) => left + right)
+		.binary('-', 20, (left, op, right) => left - right)
+		.unary('-', 20, (op, right) => -right)
+		
+		.binary('*', 30, (left, op, right) => left * right)
+		.binary('/', 30, (left, op, right) => left / right)
+
+		.rassoc('^', 40, (left, op, right) => Math.pow(left, right))
+		.build()
+	t.equal(parser.parse(), -19, 'operator precedence')
+
+	lex.state.source = '4^3^2^1'
+	t.equal(parser.parse(), Math.pow(4, 9), 'right associativity')
+
 	t.end()
 })

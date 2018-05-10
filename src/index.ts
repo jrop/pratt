@@ -188,6 +188,27 @@ export class Parser<T> {
 	}
 
 	/**
+	 * Parse a list of values
+	 * @param opts
+	 */
+	parseList(opts: {
+		consumeCloser: () => any
+		consumeSeparator: () => any
+		isNextCloser: () => boolean
+		isNextSeparator: () => boolean
+		parseItem: () => any
+	}): any[] {
+		const items = []
+		let peek: IToken<T>
+		while (!opts.isNextCloser()) {
+			items.push(opts.parseItem())
+			if (opts.isNextSeparator()) opts.consumeSeparator()
+		}
+		opts.consumeCloser()
+		return items
+	}
+
+	/**
 	 * Kicks off the Pratt parser, and returns the result
 	 * @param {ParseOpts<T>} opts The parse options
 	 * @returns {any}
@@ -274,6 +295,65 @@ export class ParserBuilder<T> {
 		return this.nud(tokenType, bp, inf =>
 			fn(Object.assign(inf, {left: null}))
 		).led(tokenType, bp, fn)
+	}
+
+	private _binary(
+		op: T,
+		bp: number,
+		rightAssociative: boolean,
+		create: (left, op: T, right) => any
+	): ParserBuilder<T> {
+		this.led(op, bp, inf => {
+			const start = inf.left.start
+			const right = this._parser.parse({
+				terminals: [rightAssociative ? bp - 1 : bp],
+				stop: inf.stop,
+			})
+			return create(inf.left, op, right)
+		})
+		return this
+	}
+
+	/**
+	 * A helper for parsing binary operators (left-associative)
+	 * @param op The operator
+	 * @param bp The binding power
+	 * @param create A function that creates the AST node
+	 */
+	binary(
+		op: T,
+		bp: number,
+		create: (left, op: T, right) => any
+	): ParserBuilder<T> {
+		return this._binary(op, bp, false, create)
+	}
+
+	/**
+	 * A helper for parsing binary operators (right-associative)
+	 * @param op The operator
+	 * @param bp The binding power
+	 * @param create A function that creates the AST node
+	 */
+	rassoc(
+		op: T,
+		bp: number,
+		create: (left, op: T, right) => any
+	): ParserBuilder<T> {
+		return this._binary(op, bp, true, create)
+	}
+
+	/**
+	 * A helper for parsing unary operators
+	 * @param op The operator
+	 * @param bp The binding power
+	 * @param create A function that creates the AST node
+	 */
+	unary(op: T, bp: number, create: (op: T, target) => any): ParserBuilder<T> {
+		this.nud(op, bp, inf => {
+			const right = this._parser.parse({terminals: [inf.bp], stop: inf.stop})
+			return create(op, right)
+		})
+		return this
 	}
 
 	/**
