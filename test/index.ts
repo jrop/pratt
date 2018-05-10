@@ -162,11 +162,11 @@ test('Helpers', t => {
 			})
 			return items[items.length - 1]
 		})
-		
+
 		.binary('+', 20, (left, op, right) => left + right)
 		.binary('-', 20, (left, op, right) => left - right)
 		.unary('-', 20, (op, right) => -right)
-		
+
 		.binary('*', 30, (left, op, right) => left * right)
 		.binary('/', 30, (left, op, right) => left / right)
 

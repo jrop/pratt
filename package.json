@@ -4,7 +4,6 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
-    "doc": "tsc --module es2015 --target es2017 && esdoc",
     "lint": "prettier -l '{src,test}/**/*.ts'",
     "lint:fix": "prettier --write '{src,test}/**/*.ts'",
     "precommit": "npm test",
@@ -13,17 +12,16 @@
     "test:cover": "nyc -r text -r html npm test"
   },
   "devDependencies": {
-    "@types/node": "^7.0.13",
-    "esdoc": "^0.5.2",
+    "@types/node": "^10.0.7",
     "husky": "^0.14.3",
     "nyc": "^11.6.0",
     "perplex": "^0.12.0-alpha.1",
-    "prettier": "^1.10.2",
-    "sinon": "^4.5.0",
+    "prettier": "^1.12.1",
+    "sinon": "^5.0.7",
     "tap-spec": "^4.1.1",
-    "tape": "^4.8.0",
-    "ts-node": "^4.1.0",
-    "typescript": "^2.2.2"
+    "tape": "^4.9.0",
+    "ts-node": "^6.0.3",
+    "typescript": "^2.8.3"
   },
   "files": [
     "lib/index.js",
