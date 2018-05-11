@@ -21,30 +21,32 @@ const lex = new Lexer().build(lex => {
 		.defineOperator(')', ')')
 		.define('WS', /\s+/, true)
 })
-const parser: Parser<string> = new Parser<string>(lex)
-	.builder()
-	.bp('EOF', -1)
-	.either(';', 1, ({left, stop}) => stop(left))
-	.nud('NUM', 100, i => parseInt(i.token.match))
-	.nud('(', 10, ({bp}) => {
-		const expr = parser.parse({terminals: [bp]})
-		lex.expect(')')
-		return expr
-	})
-	.bp(')', 0)
+const parser: Parser<string, Token<string>> = new Parser<string, Token<string>>(
+	lex
+).build(define =>
+	define
+		.bp('EOF', -1)
+		.either(';', 1, ({left, stop}) => stop(left))
+		.nud('NUM', 100, i => parseInt(i.token.match))
+		.nud('(', 10, ({bp}) => {
+			const expr = parser.parse({terminals: [bp]})
+			lex.expect(')')
+			return expr
+		})
+		.bp(')', 0)
 
-	.led('^', 20, ({left, bp}) =>
-		Math.pow(left, parser.parse({terminals: [20 - 1]}))
-	)
-	.led('+', 30, ({left, bp}) => left + parser.parse({terminals: [bp]}))
-	.either(
-		'-',
-		30,
-		({left, bp}) => (left || 0) - parser.parse({terminals: [bp]})
-	)
-	.led('*', 40, ({left, bp}) => left * parser.parse({terminals: [bp]}))
-	.led('/', 40, ({left, bp}) => left / parser.parse({terminals: [bp]}))
-	.build()
+		.led('^', 20, ({left, bp}) =>
+			Math.pow(left, parser.parse({terminals: [20 - 1]}))
+		)
+		.led('+', 30, ({left, bp}) => left + parser.parse({terminals: [bp]}))
+		.either(
+			'-',
+			30,
+			({left, bp}) => (left || 0) - parser.parse({terminals: [bp]})
+		)
+		.led('*', 40, ({left, bp}) => left * parser.parse({terminals: [bp]}))
+		.led('/', 40, ({left, bp}) => left / parser.parse({terminals: [bp]}))
+)
 
 function evaluate(s): number {
 	lex.state.source = s
@@ -92,7 +94,7 @@ test('1+ +', t => {
 })
 test('BPResolver', t => {
 	const bpResolver = sinon.spy(() => 100)
-	parser.builder().bp('NUM', bpResolver as () => number)
+	parser.build(define => define.bp('NUM', bpResolver as () => number))
 
 	t.equal(evaluate('1'), 1)
 	t.assert(bpResolver.calledOnce)
@@ -149,29 +151,32 @@ test('parser.parse({terminals: [...]})', t => {
 
 test('Helpers', t => {
 	lex.state.source = '[1, 2] + -3 * 7'
-	const parser: Parser<string> = new Parser(lex)
-		.builder()
-		.nud('NUM', 5, inf => parseFloat(inf.token.match))
-		.nud('[', 5, inf => {
-			const items = parser.parseList({
-				consumeCloser: () => lex.expect(']'),
-				consumeSeparator: () => lex.expect(','),
-				isNextCloser: () => lex.peek().type == ']',
-				isNextSeparator: () => lex.peek().type == ',',
-				parseItem: () => parser.parse({terminals: [',', ']']}),
+	const parser: Parser<string, Token<string>> = new Parser<
+		string,
+		Token<string>
+	>(lex).build(define =>
+		define
+			.nud('NUM', 5, inf => parseFloat(inf.token.match))
+			.nud('[', 5, inf => {
+				const items = parser.parseList({
+					consumeCloser: () => lex.expect(']'),
+					consumeSeparator: () => lex.expect(','),
+					isNextCloser: () => lex.peek().type == ']',
+					isNextSeparator: () => lex.peek().type == ',',
+					parseItem: () => parser.parse({terminals: [',', ']']}),
+				})
+				return items[items.length - 1]
 			})
-			return items[items.length - 1]
-		})
 
-		.binary('+', 20, (left, op, right) => left + right)
-		.binary('-', 20, (left, op, right) => left - right)
-		.unary('-', 20, (op, right) => -right)
+			.binary('+', 20, (left, op, right) => left + right)
+			.binary('-', 20, (left, op, right) => left - right)
+			.unary('-', 20, (op, right) => -right)
 
-		.binary('*', 30, (left, op, right) => left * right)
-		.binary('/', 30, (left, op, right) => left / right)
+			.binary('*', 30, (left, op, right) => left * right)
+			.binary('/', 30, (left, op, right) => left / right)
 
-		.rassoc('^', 40, (left, op, right) => Math.pow(left, right))
-		.build()
+			.rassoc('^', 40, (left, op, right) => Math.pow(left, right))
+	)
 	t.equal(parser.parse(), -19, 'operator precedence')
 
 	lex.state.source = '4^3^2^1'

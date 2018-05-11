@@ -12,9 +12,9 @@ export interface IToken<T> {
 	strpos(): ITokenPosition
 	isEof(): boolean
 }
-export interface ILexer<T> {
-	next(): IToken<T>
-	peek(): IToken<T>
+export interface ILexer<T, TType extends IToken<T>> {
+	next(): TType
+	peek(): TType
 }
 
 export type BPResolver = () => number
@@ -22,24 +22,25 @@ export type BP = number | BPResolver
 
 export type StopFunction = (<T>(x: T) => T) & {isStopped(): boolean}
 
-export type NudInfo<T> = {
-	token: IToken<T>
+export type NudInfo<T, TType extends IToken<T>> = {
+	token: TType
 	bp: number
 	stop: StopFunction
-
-	// TODO: with the below addition of `options`
-	// the `ctx parameter is carried through anyway
-	// remove in a breaking API change release
-	ctx: any
 	options: ParseOpts<T>
 }
-export type LedInfo<T> = NudInfo<T> & {left: any}
+export type LedInfo<T, TType extends IToken<T>> = NudInfo<T, TType> & {
+	left: any
+}
 
-export type NudFunction<T> = (inf: NudInfo<T>) => any
-export type LedFunction<T> = (inf: LedInfo<T>) => any
+export type NudFunction<T, TType extends IToken<T>> = (
+	inf: NudInfo<T, TType>
+) => any
+export type LedFunction<T, TType extends IToken<T>> = (
+	inf: LedInfo<T, TType>
+) => any
 
-export type NudMap<T> = Map<T, NudFunction<T>>
-export type LedMap<T> = Map<T, LedFunction<T>>
+export type NudMap<T, TType extends IToken<T>> = Map<T, NudFunction<T, TType>>
+export type LedMap<T, TType extends IToken<T>> = Map<T, LedFunction<T, TType>>
 
 export type ParseOpts<T> = {
 	ctx?: any
@@ -64,49 +65,72 @@ const createStop = <T>(): StopFunction => {
 
 /**
  * A Pratt parser.
- * @example
- * const lex = new perplex.Lexer('1 + -2 * 3^4')
- *   .token('NUM', /\d+/)
- *   .token('+', /\+/)
- *   .token('-', /-/)
- *   .token('*', new RegExp('*'))
- *   .token('/', /\//)
- *   .token('^', /\^/)
- *   .token('(', /\(/)
- *   .token(')', /\)/)
- *   .token('$SKIP_WS', /\s+/)
  *
- * const parser = new Parser(lex)
- *   .builder()
- *   .nud('NUM', 100, t => parseInt(t.match))
- *   .nud('-', 10, (t, bp) => -parser.parse(bp))
- *   .nud('(', 10, (t, bp) => {
- *     const expr = parser.parse(bp)
- *     lex.expect(')')
- *     return expr
- *   })
- *   .bp(')', 0)
+ * ```typescript
+ * import Lexer, {Token} from 'perplex'
+ * import {Parser} from 'pratt'
  *
- *   .led('^', 20, (left, t, bp) => Math.pow(left, parser.parse(20 - 1)))
- *   .led('+', 30, (left, t, bp) => left + parser.parse(bp))
- *   .led('-', 30, (left, t, bp) => left - parser.parse(bp))
- *   .led('*', 40, (left, t, bp) => left * parser.parse(bp))
- *   .led('/', 40, (left, t, bp) => left / parser.parse(bp))
- *   .build()
+ * const lex = new Lexer('1 + -2 * 3^4').build(lex => {
+ *   lex.tokenTypes
+ *     .define('NUM', /\d+/)
+ *     .defineOperator('+', '+')
+ *     .defineOperator('-', '-')
+ *     .defineOperator('*', '*')
+ *     .defineOperator('/', '/')
+ *     .defineOperator('^', '^')
+ *     .defineOperator('(', '(')
+ *     .defineOperator(')', ')')
+ *     .define('WS', /\s+/, true)
+ * })
+ *
+ * const parser: Parser<string, Token<string>> = new Parser<string, Token<string>>(lex)
+ *   .build(define =>
+ *     define
+ *       .bp(null, -1) // EOF
+ *       .nud('NUM', 100, i => parseInt(i.token.match))
+ *       .nud('(', 10, ({bp}) => {
+ *         const expr = parser.parse({terminals: [bp]})
+ *         lex.expect(')')
+ *         return expr
+ *       })
+ *       .bp(')', 0)
+ *       .led('^', 20, ({left, bp}) =>
+ *         Math.pow(left, parser.parse({terminals: [20 - 1]}))
+ *       )
+ *       .led('+', 30, ({left, bp}) => left + parser.parse({terminals: [bp]}))
+ *       .either(
+ *         '-',
+ *         30,
+ *         ({left, bp}) => (left || 0) - parser.parse({terminals: [bp]})
+ *       )
+ *       .led('*', 40, ({left, bp}) => left * parser.parse({terminals: [bp]}))
+ *       .led('/', 40, ({left, bp}) => left / parser.parse({terminals: [bp]}))
+ *   )
  * parser.parse()
  * // => 161
+ * ```
  */
-export class Parser<T> {
-	public lexer: ILexer<T>
-	_nuds: NudMap<T>
-	_leds: LedMap<T>
+export class Parser<T, TType extends IToken<T>> {
+	public lexer: ILexer<T, TType>
+
+	/**
+	 * @hidden
+	 */
+	_nuds: NudMap<T, TType>
+	/**
+	 * @hidden
+	 */
+	_leds: LedMap<T, TType>
+	/**
+	 * @hidden
+	 */
 	_bps: Map<T, BP>
 
 	/**
 	 * Constructs a Parser instance
 	 * @param {ILexer<T>} lexer The lexer to obtain tokens from
 	 */
-	constructor(lexer: ILexer<T>) {
+	constructor(lexer: ILexer<T, TType>) {
 		/**
 		 * The lexer that this parser is operating on.
 		 * @type {ILexer<T>}
@@ -117,18 +141,19 @@ export class Parser<T> {
 		this._bps = new Map()
 	}
 
-	private _type(tokenOrType: IToken<T> | T): T {
-		return tokenOrType && typeof (tokenOrType as IToken<T>).isEof == 'function'
-			? (tokenOrType as IToken<T>).type
+	private _type(tokenOrType: TType | T): T {
+		return tokenOrType && typeof (tokenOrType as TType).isEof == 'function'
+			? (tokenOrType as TType).type
 			: (tokenOrType as T)
 	}
 
 	/**
-	 * Create a {@link ParserBuilder}
-	 * @return {ParserBuilder<T>} Returns the ParserBuilder
+	 * Build the parser
+	 * @return Returns the Parser
 	 */
-	builder(): ParserBuilder<T> {
-		return new ParserBuilder(this)
+	build(builder: (define: ParserBuilder<T, TType>) => any): this {
+		builder(new ParserBuilder(this))
+		return this
 	}
 
 	/**
@@ -136,12 +161,12 @@ export class Parser<T> {
 	 * @param {IToken<T>|T} tokenOrType The token type to define the binding power for
 	 * @returns {number} The binding power of the specified token type
 	 */
-	bp(tokenOrType: IToken<T> | T) {
+	bp(tokenOrType: TType | T) {
 		if (tokenOrType == null) return Number.NEGATIVE_INFINITY
 		if (
 			tokenOrType &&
-			typeof (tokenOrType as IToken<T>).isEof == 'function' &&
-			(tokenOrType as IToken<T>).isEof()
+			typeof (tokenOrType as TType).isEof == 'function' &&
+			(tokenOrType as TType).isEof()
 		)
 			return Number.NEGATIVE_INFINITY
 		const type = this._type(tokenOrType)
@@ -156,8 +181,8 @@ export class Parser<T> {
 	 * @param {NudInfo<T>} info The info to compute the `nud` from
 	 * @returns {any} The result of invoking the pertinent `nud` operator
 	 */
-	nud(info: NudInfo<T>) {
-		let fn: NudFunction<T> = this._nuds.get(info.token.type)
+	nud(info: NudInfo<T, TType>) {
+		let fn: NudFunction<T, TType> = this._nuds.get(info.token.type)
 		if (!fn) {
 			const {start} = info.token.strpos()
 			throw new Error(
@@ -174,7 +199,7 @@ export class Parser<T> {
 	 * @param {LedInfo<T>} info The info to compute the `led` value for
 	 * @returns {any} The result of invoking the pertinent `led` operator
 	 */
-	led(info: LedInfo<T>) {
+	led(info: LedInfo<T, TType>) {
 		let fn = this._leds.get(info.token.type)
 		if (!fn) {
 			const {start} = info.token.strpos()
@@ -185,27 +210,6 @@ export class Parser<T> {
 			)
 		}
 		return fn(info)
-	}
-
-	/**
-	 * Parse a list of values
-	 * @param opts
-	 */
-	parseList(opts: {
-		consumeCloser: () => any
-		consumeSeparator: () => any
-		isNextCloser: () => boolean
-		isNextSeparator: () => boolean
-		parseItem: () => any
-	}): any[] {
-		const items = []
-		let peek: IToken<T>
-		while (!opts.isNextCloser()) {
-			items.push(opts.parseItem())
-			if (opts.isNextSeparator()) opts.consumeSeparator()
-		}
-		opts.consumeCloser()
-		return items
 	}
 
 	/**
@@ -225,9 +229,9 @@ export class Parser<T> {
 				if (typeof rbpOrType == 'string') return t.type != rbpOrType
 			}, true)
 		}
-		const mkinfo = (token: IToken<T>): NudInfo<T> => {
+		const mkinfo = (token: TType): NudInfo<T, TType> => {
 			const bp = this.bp(token)
-			return {token, bp, stop, ctx: opts.ctx, options: opts}
+			return {token, bp, stop, options: opts}
 		}
 		if (!opts.terminals) opts.terminals = [0]
 		if (opts.terminals.length == 0) opts.terminals.push(0)
@@ -239,20 +243,41 @@ export class Parser<T> {
 		}
 		return left
 	}
+
+	/**
+	 * Parse a list of values
+	 * @param opts
+	 */
+	parseList(opts: {
+		consumeCloser: () => any
+		consumeSeparator: () => any
+		isNextCloser: () => boolean
+		isNextSeparator: () => boolean
+		parseItem: () => any
+	}): any[] {
+		const items = []
+		let peek: TType
+		while (!opts.isNextCloser()) {
+			items.push(opts.parseItem())
+			if (opts.isNextSeparator()) opts.consumeSeparator()
+		}
+		opts.consumeCloser()
+		return items
+	}
 }
 
 /**
  * Builds `led`/`nud` rules for a {@link Parser}
  */
-export class ParserBuilder<T> {
-	private _parser: Parser<T>
+export class ParserBuilder<T, TType extends IToken<T>> {
+	private _parser: Parser<T, TType>
 
 	/**
 	 * Constructs a ParserBuilder
 	 * See also: {@link Parser.builder}
 	 * @param {Parser<T>} parser The parser
 	 */
-	constructor(parser: Parser<T>) {
+	constructor(parser: Parser<T, TType>) {
 		this._parser = parser
 	}
 
@@ -263,7 +288,7 @@ export class ParserBuilder<T> {
 	 * @param {NudFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	nud(tokenType: T, bp: BP, fn: NudFunction<T>): ParserBuilder<T> {
+	nud(tokenType: T, bp: BP, fn: NudFunction<T, TType>): this {
 		this._parser._nuds.set(tokenType, fn)
 		this.bp(tokenType, bp)
 		return this
@@ -276,7 +301,7 @@ export class ParserBuilder<T> {
 	 * @param {LedFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	led(tokenType: T, bp: BP, fn: LedFunction<T>): ParserBuilder<T> {
+	led(tokenType: T, bp: BP, fn: LedFunction<T, TType>): this {
 		this._parser._leds.set(tokenType, fn)
 		this.bp(tokenType, bp)
 		return this
@@ -291,7 +316,7 @@ export class ParserBuilder<T> {
 	 * @param {LedFunction<T>} fn The function that will parse the token
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	either(tokenType: T, bp: BP, fn: LedFunction<T>): ParserBuilder<T> {
+	either(tokenType: T, bp: BP, fn: LedFunction<T, TType>): this {
 		return this.nud(tokenType, bp, inf =>
 			fn(Object.assign(inf, {left: null}))
 		).led(tokenType, bp, fn)
@@ -302,7 +327,7 @@ export class ParserBuilder<T> {
 		bp: number,
 		rightAssociative: boolean,
 		create: (left, op: T, right) => any
-	): ParserBuilder<T> {
+	): this {
 		this.led(op, bp, inf => {
 			const start = inf.left.start
 			const right = this._parser.parse({
@@ -320,11 +345,7 @@ export class ParserBuilder<T> {
 	 * @param bp The binding power
 	 * @param create A function that creates the AST node
 	 */
-	binary(
-		op: T,
-		bp: number,
-		create: (left, op: T, right) => any
-	): ParserBuilder<T> {
+	binary(op: T, bp: number, create: (left, op: T, right) => any): this {
 		return this._binary(op, bp, false, create)
 	}
 
@@ -334,11 +355,7 @@ export class ParserBuilder<T> {
 	 * @param bp The binding power
 	 * @param create A function that creates the AST node
 	 */
-	rassoc(
-		op: T,
-		bp: number,
-		create: (left, op: T, right) => any
-	): ParserBuilder<T> {
+	rassoc(op: T, bp: number, create: (left, op: T, right) => any): this {
 		return this._binary(op, bp, true, create)
 	}
 
@@ -348,7 +365,7 @@ export class ParserBuilder<T> {
 	 * @param bp The binding power
 	 * @param create A function that creates the AST node
 	 */
-	unary(op: T, bp: number, create: (op: T, target) => any): ParserBuilder<T> {
+	unary(op: T, bp: number, create: (op: T, target) => any): this {
 		this.nud(op, bp, inf => {
 			const right = this._parser.parse({terminals: [inf.bp], stop: inf.stop})
 			return create(op, right)
@@ -362,17 +379,9 @@ export class ParserBuilder<T> {
 	 * @param {BP} bp The binding power
 	 * @return {ParserBuilder<T>} Returns this ParserBuilder
 	 */
-	bp(tokenType: T, bp: BP): ParserBuilder<T> {
+	bp(tokenType: T, bp: BP): this {
 		this._parser._bps.set(tokenType, bp)
 		return this
-	}
-
-	/**
-	 * Returns the parent {@link Parser} instance
-	 * @returns {Parser<T>}
-	 */
-	build(): Parser<T> {
-		return this._parser
 	}
 }
 
