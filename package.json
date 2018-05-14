@@ -4,7 +4,9 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
-    "docs": "typedoc --out ./docs --mode file --excludePrivate ./src",
+    "docs": "npm run docs:ts && npm run docs:book",
+    "docs:book": "gitbook build",
+    "docs:ts": "typedoc --out ./docs/api --mode file --excludePrivate ./src",
     "gh-pages": "gh-pages -d docs",
     "lint": "prettier -l '{src,test}/**/*.ts'",
     "lint:fix": "prettier --write '{src,test}/**/*.ts'",
@@ -16,6 +18,7 @@
   "devDependencies": {
     "@types/node": "^10.0.7",
     "gh-pages": "^1.1.0",
+    "gitbook-cli": "^2.3.2",
     "husky": "^0.14.3",
     "nyc": "^11.6.0",
     "perplex": "^0.12.0-alpha.1",
