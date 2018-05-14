@@ -4,9 +4,9 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
-    "docs": "npm run docs:ts && npm run docs:book",
-    "docs:book": "gitbook build",
-    "docs:ts": "typedoc --out ./docs/api --mode file --excludePrivate ./src",
+    "docs": "npm run docs:ts && npm run docs:site",
+    "docs:site": "vuepress build docs",
+    "docs:ts": "typedoc --out ./docs/.vuepress/public/api --mode file --excludePrivate ./src",
     "gh-pages": "gh-pages -d docs",
     "lint": "prettier -l '{src,test}/**/*.ts'",
     "lint:fix": "prettier --write '{src,test}/**/*.ts'",
@@ -18,7 +18,6 @@
   "devDependencies": {
     "@types/node": "^10.0.7",
     "gh-pages": "^1.1.0",
-    "gitbook-cli": "^2.3.2",
     "husky": "^0.14.3",
     "nyc": "^11.6.0",
     "perplex": "^0.12.0-alpha.1",
@@ -28,7 +27,8 @@
     "tape": "^4.9.0",
     "ts-node": "^6.0.3",
     "typedoc": "^0.11.1",
-    "typescript": "^2.8.3"
+    "typescript": "^2.8.3",
+    "vuepress": "^0.8.4"
   },
   "files": [
     "lib/index.js",
