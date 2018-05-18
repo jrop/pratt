@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "docs": "npm run docs:ts && npm run docs:site",
+    "docs:dev": "vuepress dev docs",
     "docs:site": "vuepress build docs",
     "docs:ts": "typedoc --out ./docs/.vuepress/public/api --mode file --excludePrivate ./src",
     "gh-pages": "gh-pages -d docs",

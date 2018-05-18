@@ -24,7 +24,7 @@ This README merely serves as an example. Be sure to [read the API documentation]
 
 Make a simple calculator:
 
-```js
+```typescript
 import * as perplex from 'perplex'
 import {Parser} from 'pratt'
 

@@ -1,6 +1,6 @@
 module.exports = {
 	title: 'pratt - Documentation',
 	themeConfig: {
-		sidebar: ['/'],
+		sidebar: ['/', '/install', '/usage', '/api', '/contributing', '/license'],
 	},
 }
