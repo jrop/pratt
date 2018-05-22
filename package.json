@@ -1,6 +1,6 @@
 {
   "name": "pratt",
-  "version": "0.8.0-alpha.2",
+  "version": "0.8.0-alpha.3",
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
