@@ -374,6 +374,17 @@ export class ParserBuilder<T, TType extends IToken<T>> {
 	}
 
 	/**
+	 * A helper for parsing suffix operators
+	 * @param op The operator
+	 * @param bp The binding power
+	 * @param create A function that creates the AST node
+	 */
+	suffix(op: T, bp: number, create: (op: T, target) => any): this {
+		this.led(op, bp, inf => create(op, inf.left))
+		return this
+	}
+
+	/**
 	 * Define the binding power for a token type
 	 * @param {T} tokenType The token type
 	 * @param {BP} bp The binding power
