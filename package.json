@@ -13,6 +13,7 @@
     "lint:fix": "prettier --write '{src,test}/**/*.ts'",
     "precommit": "npm test",
     "prepack": "tsc && npm test",
+    "prepare": "tsc",
     "test": "tape -r ts-node/register test/index.ts | tap-spec",
     "test:cover": "nyc -r text -r html npm test"
   },
