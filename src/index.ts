@@ -15,6 +15,7 @@ export interface IToken<T> {
 export interface ILexer<T, TType extends IToken<T>> {
 	next(): TType
 	peek(): TType
+	rewind(t: TType)
 }
 
 export type BPResolver = () => number
@@ -112,6 +113,7 @@ const createStop = <T>(): StopFunction => {
  */
 export class Parser<T, TType extends IToken<T>> {
 	public lexer: ILexer<T, TType>
+	public define: ParserBuilder<T, TType> = new ParserBuilder(this)
 
 	/**
 	 * @hidden
@@ -392,6 +394,20 @@ export class ParserBuilder<T, TType extends IToken<T>> {
 	 */
 	bp(tokenType: T, bp: BP): this {
 		this._parser._bps.set(tokenType, bp)
+		return this
+	}
+
+	/**
+	 * Instructs the parser to stop parsing
+	 * upon encountering the particular token type
+	 * @param tokenType The token type to stop parsing at
+	 * @param bp The binding power of the token
+	 */
+	stop(tokenType: T): this {
+		this.either(tokenType, 0, inf => {
+			this._parser.lexer.rewind(inf.token)
+			return inf.stop(inf.left)
+		})
 		return this
 	}
 }
